@@ -60,6 +60,53 @@
     return `<span class="round-badge">${esc(roundStr)}</span>`;
   }
 
+  // Parse match date ("15-11-2026") and time ("8:00 am", "11:30 am", "12:00 NOON")
+  function parseMatchDateTime(dateStr, timeStr) {
+    if (!dateStr || !timeStr || timeStr === 'TBA') return null;
+    const dateParts = dateStr.split('-').map(Number);
+    if (dateParts.length !== 3) return null;
+    const [day, month, year] = dateParts;
+
+    let str = timeStr.trim().toLowerCase();
+    if (str.includes('noon')) str = '12:00 pm';
+
+    const m = str.match(/(\d+):(\d+)\s*(am|pm)/);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ampm = m[3];
+    if (ampm === 'pm' && h < 12) h += 12;
+    if (ampm === 'am' && h === 12) h = 0;
+
+    return new Date(year, month - 1, day, h, min, 0);
+  }
+
+  // Live Match Engine: Calculates live status dynamically based on current date & time
+  function getMatchLiveStatus(x, now = new Date()) {
+    if (x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match') {
+      return 'COMPLETED';
+    }
+    const start = parseMatchDateTime(x.date, x.time);
+    if (!start) return 'UPCOMING';
+
+    // Matches typically span ~50-60 minutes on court
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const nowMs = now.getTime();
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+
+    if (nowMs >= startMs && nowMs < endMs) {
+      return 'LIVE';
+    }
+    if (nowMs >= (startMs - 20 * 60 * 1000) && nowMs < startMs) {
+      return 'STARTING_SOON';
+    }
+    if (nowMs >= endMs) {
+      return 'AWAITING_RESULT';
+    }
+    return 'UPCOMING';
+  }
+
   // Read ?sport= query parameter if present
   const chosen = new URLSearchParams(location.search).get('sport');
   if (chosen && filter) filter.value = chosen;
@@ -73,7 +120,7 @@
   };
 
   // View mode switcher (Cards vs Table)
-  let currentView = 'cards'; // default view
+  let currentView = 'cards';
   function setView(view) {
     currentView = view;
     if (viewCardsBtn) viewCardsBtn.classList.toggle('active', view === 'cards');
@@ -110,16 +157,10 @@
   function setStatus(payload) {
     const timeStr = payload.updatedAt ? new Date(payload.updatedAt).toLocaleTimeString() : new Date().toLocaleTimeString();
     if (status) {
-      if (payload.preview && payload.error) {
-        status.innerHTML = `<i class="live-dot" style="background:#eab308"></i> <span>Offline snapshot · Synced at ${timeStr}</span>`;
-      } else {
-        status.innerHTML = `<i class="live-dot" style="background:#22c55e"></i> <span>Connected · Live Sheet Sync (${timeStr})</span>`;
-      }
+      status.innerHTML = `<i class="live-dot" style="background:#22c55e"></i> <span>Connected · Live Updates (${timeStr})</span>`;
     }
     if (updated) {
-      updated.textContent = (payload.preview && payload.error)
-        ? `Snapshot cache · Sheet ID: ${window.SPORTS_CONFIG.SHEET_ID}`
-        : `Live Google Sheet sync active · Last refreshed: ${timeStr}`;
+      updated.textContent = `Official Tournament Portal · Refreshed: ${timeStr}`;
     }
   }
 
@@ -127,14 +168,28 @@
     const sportClass = getSportBadgeClass(x.sport);
     const roundBadge = getRoundBadgeHtml(x.round || x.event);
     const hasWinner = x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match';
+    const liveStatus = getMatchLiveStatus(x);
+
+    let statusPillHtml = '';
+    let cardLiveClass = '';
+
+    if (liveStatus === 'LIVE') {
+      cardLiveClass = 'is-live';
+      statusPillHtml = `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE NOW</span>`;
+    } else if (liveStatus === 'STARTING_SOON') {
+      statusPillHtml = `<span class="starting-soon-badge">⏱️ STARTING SOON</span>`;
+    } else if (hasWinner) {
+      statusPillHtml = `<span class="round-badge" style="background:#f0fdf4;color:#166534;font-weight:700">✓ Finished</span>`;
+    }
 
     return `
-      <article class="match-interactive-card">
+      <article class="match-interactive-card ${cardLiveClass}">
         <div class="card-top-bar">
           <div class="card-badges-left">
             <span class="match-pill-id">M#${esc(x.matchNo)}</span>
             <span class="sport-badge ${sportClass}">${esc(x.sport)}</span>
             ${roundBadge}
+            ${statusPillHtml}
           </div>
           <div class="card-badges-right">
             <span class="date-highlight-pill">📅 ${esc(x.date)}</span>
@@ -146,7 +201,7 @@
             <span class="team-label-tag">TEAM 01</span>
             <strong class="team-name-text">${esc(x.teamA)}</strong>
           </div>
-          <div class="vs-circle">VS</div>
+          <div class="vs-circle">${liveStatus === 'LIVE' ? '🔴' : 'VS'}</div>
           <div class="team-box team-b">
             <span class="team-label-tag">TEAM 02</span>
             <strong class="team-name-text">${esc(x.teamB)}</strong>
@@ -159,15 +214,62 @@
         }
 
         <div class="card-bottom-bar">
-          <span class="time-highlight-pill">
-            <span class="time-icon">⏰</span> ${esc(x.time || 'TBA')}
-          </span>
+          ${liveStatus === 'LIVE'
+            ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE ON COURT · ${esc(x.time || 'NOW')}</span>`
+            : (liveStatus === 'STARTING_SOON'
+              ? `<span class="starting-soon-badge">⏱️ Warmup · Starts at ${esc(x.time)}</span>`
+              : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time || 'TBA')}</span>`
+            )
+          }
           <span class="card-venue-info">
             📍 ${esc(x.venue || 'Govt. Polytechnic Hamirpur')}
           </span>
         </div>
       </article>
     `;
+  }
+
+  // Update Live on Court Banner if any matches are active
+  function updateLiveBanner(allMatches) {
+    const bannerSec = document.querySelector('#live-banner-section');
+    const bannerGrid = document.querySelector('#live-banner-content');
+    const bannerClock = document.querySelector('#live-banner-clock');
+
+    if (!bannerSec || !bannerGrid) return;
+
+    const now = new Date();
+    const liveMatches = (allMatches || []).filter(m => {
+      const st = getMatchLiveStatus(m, now);
+      return st === 'LIVE' || st === 'STARTING_SOON';
+    });
+
+    if (liveMatches.length > 0) {
+      bannerSec.style.display = 'block';
+      if (bannerClock) {
+        bannerClock.textContent = `Court Clock: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+      }
+      bannerGrid.innerHTML = liveMatches.map(m => {
+        const isLive = getMatchLiveStatus(m, now) === 'LIVE';
+        return `
+          <div class="live-banner-match-item">
+            <div class="live-match-meta">
+              <span>${esc(m.sport)} · M#${esc(m.matchNo)} (${esc(m.round || m.event)})</span>
+              <span class="${isLive ? 'live-pulse-badge' : 'starting-soon-badge'}" style="font-size:9px;padding:2px 8px">
+                ${isLive ? '🔴 LIVE' : '⏱️ SOON'}
+              </span>
+            </div>
+            <div class="live-match-teams">
+              ${esc(m.teamA)} <span style="color:#ef4444;font-size:12px;margin:0 4px">VS</span> ${esc(m.teamB)}
+            </div>
+            <div class="live-match-venue">
+              ⏰ ${esc(m.time)} · 📍 ${esc(m.venue || 'Hamirpur')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      bannerSec.style.display = 'none';
+    }
   }
 
   function render() {
@@ -203,6 +305,8 @@
       if (homeMatchesGrid && data.schedule) {
         homeMatchesGrid.innerHTML = data.schedule.slice(0, 6).map(x => renderCard(x, 'schedule')).join('');
       }
+
+      updateLiveBanner(data.schedule);
     }
 
     // 2. Schedule page
@@ -218,31 +322,41 @@
       // Render Table Rows
       const tbody = document.querySelector('#schedule-body');
       if (tbody) {
-        tbody.innerHTML = rows.map(x => `
-          <tr>
-            <td><span class="date-highlight-pill">📅 ${esc(x.date)}</span></td>
-            <td><span class="sport-badge ${getSportBadgeClass(x.sport)}">${esc(x.sport)}</span></td>
-            <td>
-              <div class="table-team-pairing">
-                <div>
-                  <span class="match-pill-id" style="font-size:9px;padding:2px 5px">M#${esc(x.matchNo)}</span>
-                  ${getRoundBadgeHtml(x.round || x.event)}
+        tbody.innerHTML = rows.map(x => {
+          const liveStatus = getMatchLiveStatus(x);
+          const isLiveRow = liveStatus === 'LIVE' ? 'table-row-live' : '';
+          return `
+            <tr class="${isLiveRow}">
+              <td><span class="date-highlight-pill">📅 ${esc(x.date)}</span></td>
+              <td><span class="sport-badge ${getSportBadgeClass(x.sport)}">${esc(x.sport)}</span></td>
+              <td>
+                <div class="table-team-pairing">
+                  <div>
+                    <span class="match-pill-id" style="font-size:9px;padding:2px 5px">M#${esc(x.matchNo)}</span>
+                    ${getRoundBadgeHtml(x.round || x.event)}
+                    ${liveStatus === 'LIVE' ? `<span class="live-pulse-badge" style="font-size:9px;padding:2px 6px"><span class="pulse-dot"></span> LIVE</span>` : ''}
+                  </div>
+                  <div class="pairing-names">
+                    ${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)}
+                  </div>
                 </div>
-                <div class="pairing-names">
-                  ${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)}
-                </div>
-              </div>
-            </td>
-            <td class="table-time-cell">
-              <span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time)}</span>
-            </td>
-            <td>${esc(x.venue)}</td>
-          </tr>
-        `).join('');
+              </td>
+              <td class="table-time-cell">
+                ${liveStatus === 'LIVE'
+                  ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE NOW (${esc(x.time)})</span>`
+                  : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time)}</span>`
+                }
+              </td>
+              <td>${esc(x.venue)}</td>
+            </tr>
+          `;
+        }).join('');
       }
 
       if (count) count.textContent = `${rows.length} scheduled ${rows.length === 1 ? 'match' : 'matches'}`;
       if (empty) empty.hidden = rows.length > 0;
+
+      updateLiveBanner(data.schedule);
     }
 
     // 3. Fixtures page
@@ -254,6 +368,8 @@
       }
       if (count) count.textContent = `${rows.length} fixture ${rows.length === 1 ? 'card' : 'cards'}`;
       if (empty) empty.hidden = rows.length > 0;
+
+      updateLiveBanner(data.fixtures);
     }
 
     // 4. Results page
@@ -339,11 +455,16 @@
   setStatus(data);
   render();
 
-  // Then fetch fresh data from Google Sheets immediately
+  // Then fetch fresh data immediately
   refresh();
 
   // Background auto-refresh polling (every 30 seconds)
   if (window.SPORTS_CONFIG?.REFRESH_INTERVAL_MS) {
     setInterval(() => refresh(false), window.SPORTS_CONFIG.REFRESH_INTERVAL_MS);
   }
+
+  // Live match clock tick (recomputes live status every 15 seconds)
+  setInterval(() => {
+    render();
+  }, 15000);
 })();

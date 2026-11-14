@@ -33,25 +33,26 @@
 </header>
 
 <main>
+  <!-- Hero Section -->
   <section class="hero">
     <div class="container hero-grid">
       <div class="hero-copy">
         <div class="eyebrow"><span class="eyebrow-dot"></span> OFFICIAL EVENT PORTAL</div>
         <p class="edition">28TH EDITION <span>·</span> GOVT. POLYTECHNIC HAMIRPUR (HP)</p>
         <h1>Compete with<br><em>honour.</em> Play with pride.</h1>
-        <p class="hero-text">The official live information hub for the 28th H.P. Inter Polytechnic Sports Meet (Boys) 2026 (15-11-2026 to 17-11-2026). All match details, live fixtures, and tournament results are synced directly with the official Google Sheet.</p>
+        <p class="hero-text">The official live information hub for the 28th H.P. Inter Polytechnic Sports Meet (Boys) 2026 (15-11-2026 to 17-11-2026). All match details, live court fixtures, timings and tournament results updated in real time throughout the championship.</p>
         <div class="hero-actions">
           <a class="btn btn-gold" href="schedule.html">View Schedule <span>↗</span></a>
           <a class="text-link" href="fixtures.html">Explore fixtures <span>→</span></a>
           <a class="text-link" href="results.html">Live results <span>→</span></a>
         </div>
         <div class="hero-meta">
-          <span id="update-status"><i class="live-dot"></i> Live Sheet Sync Active</span>
+          <span id="update-status"><i class="live-dot"></i> Official Live Match Centre</span>
           <span>·</span>
           <span>15-17 Nov 2026</span>
           <span>·</span>
-          <button id="btn-refresh" class="refresh-btn" type="button" title="Refresh latest data from Google Sheet">
-            <span class="spin-icon">↻</span> Refresh Sheet
+          <button id="btn-refresh" class="refresh-btn" type="button" title="Refresh live match data">
+            <span class="spin-icon">↻</span> Refresh
           </button>
         </div>
       </div>
@@ -74,6 +75,40 @@
     </div>
   </section>
 
+  <!-- Sporting Disciplines Band (Shifted right below the Hero Section) -->
+  <section class="sports-band sports-band-top">
+    <div class="container">
+      <div class="band-heading">
+        <div>
+          <p class="eyebrow">SPORTING DISCIPLINES</p>
+          <h2>Five sports. One championship spirit.</h2>
+        </div>
+        <p>Select a sport to filter its fixtures and live match details.</p>
+      </div>
+      <div class="sports-list">
+        <a href="fixtures.html?sport=Badminton"><span>01</span>Badminton <b>↗</b></a>
+        <a href="fixtures.html?sport=Table%20Tennis"><span>02</span>Table Tennis <b>↗</b></a>
+        <a href="fixtures.html?sport=Volleyball"><span>03</span>Volleyball <b>↗</b></a>
+        <a href="fixtures.html?sport=Basketball"><span>04</span>Basketball <b>↗</b></a>
+        <a href="fixtures.html?sport=Kabaddi"><span>05</span>Kabaddi <b>↗</b></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live on Court Match Banner (Visible automatically when matches are active) -->
+  <section class="live-banner-section container" id="live-banner-section" style="display: none;">
+    <div class="live-banner-card">
+      <div class="live-banner-header">
+        <h3><span class="pulse-dot"></span> LIVE NOW ON COURT</h3>
+        <span class="live-banner-clock" id="live-banner-clock">Live updates in progress</span>
+      </div>
+      <div class="live-banner-matches-grid" id="live-banner-content">
+        <!-- Injected automatically by live match engine in app.js -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Info Strip -->
   <section class="quick-strip">
     <div class="container quick-grid">
       <div>
@@ -92,9 +127,9 @@
         <small>Hamirpur, Himachal Pradesh</small>
       </div>
       <div>
-        <span class="quick-label">SHEET SYNC</span>
+        <span class="quick-label">MATCH STATUS</span>
         <strong>LIVE</strong>
-        <small>Auto-refreshes every 30s</small>
+        <small>Auto-updated in real-time</small>
       </div>
     </div>
   </section>
@@ -189,32 +224,13 @@
     </div>
   </section>
 
-  <!-- Sports Band -->
-  <section class="sports-band">
-    <div class="container">
-      <div class="band-heading">
-        <div>
-          <p class="eyebrow">SPORTING DISCIPLINES</p>
-          <h2>Five sports. One championship spirit.</h2>
-        </div>
-        <p>Select a sport to filter its fixtures and live match details.</p>
-      </div>
-      <div class="sports-list">
-        <a href="fixtures.html?sport=Badminton"><span>01</span>Badminton <b>↗</b></a>
-        <a href="fixtures.html?sport=Table%20Tennis"><span>02</span>Table Tennis <b>↗</b></a>
-        <a href="fixtures.html?sport=Volleyball"><span>03</span>Volleyball <b>↗</b></a>
-        <a href="fixtures.html?sport=Basketball"><span>04</span>Basketball <b>↗</b></a>
-        <a href="fixtures.html?sport=Kabaddi"><span>05</span>Kabaddi <b>↗</b></a>
-      </div>
-    </div>
-  </section>
-
+  <!-- Notice Section -->
   <section class="notice-section container">
     <div class="notice-mark">i</div>
     <div>
-      <p class="eyebrow dark">OFFICIAL LIVE DATA INTEGRATION</p>
-      <h3>Directly synced with the official Google Sheet.</h3>
-      <p>This portal connects in real time to the organizers' master Google Sheet. Whenever match results, team qualifiers, or timings are updated in the sheet, the site updates automatically.</p>
+      <p class="eyebrow dark">OFFICIAL CHAMPIONSHIP PORTAL</p>
+      <h3>Official Real-Time Tournament Information</h3>
+      <p>This portal provides live verified updates for all match pairings, timings, day-wise schedules, court statuses, and published results throughout the meet.</p>
     </div>
     <a class="btn btn-outline" href="results.html">View live results</a>
   </section>

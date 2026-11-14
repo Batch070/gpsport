@@ -52,12 +52,25 @@
           <button id="view-cards-btn" class="view-btn active" type="button" title="Switch to Cards View">⊞ Cards</button>
           <button id="view-table-btn" class="view-btn" type="button" title="Switch to Table View">☰ Table</button>
         </div>
-        <div class="data-status"><span id="update-status"><i class="live-dot"></i> Live Sheet Sync</span></div>
-        <button id="btn-refresh" class="refresh-btn" type="button" title="Fetch latest updates from Google Sheet">
+        <div class="data-status"><span id="update-status"><i class="live-dot"></i> Live Tournament Centre</span></div>
+        <button id="btn-refresh" class="refresh-btn" type="button" title="Fetch latest live updates">
           <span class="spin-icon">↻</span> Refresh
         </button>
       </div>
     </div>
+
+    <!-- Live on Court Match Banner -->
+    <section class="live-banner-section" id="live-banner-section" style="display: none; padding: 0 0 20px 0;">
+      <div class="live-banner-card">
+        <div class="live-banner-header">
+          <h3><span class="pulse-dot"></span> LIVE NOW ON COURT</h3>
+          <span class="live-banner-clock" id="live-banner-clock">Live updates in progress</span>
+        </div>
+        <div class="live-banner-matches-grid" id="live-banner-content">
+          <!-- Injected automatically by live match engine in app.js -->
+        </div>
+      </div>
+    </section>
 
     <div class="filter-row">
       <label class="search-box">
@@ -101,7 +114,7 @@
 
     <div class="table-foot">
       <span id="row-count">Loading matches...</span>
-      <span id="last-updated">Connecting to Google Sheet...</span>
+      <span id="last-updated">Live tournament connection active</span>
     </div>
   </section>
 </main>

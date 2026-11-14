@@ -455,3 +455,158 @@
     height: 42px;
   }
 }
+
+/* ==========================================================
+   LIVE MATCH ENGINE & AUTOMATIC STATUS HIGHLIGHTS
+   ========================================================== */
+
+/* Live Pulsing Badge */
+.live-pulse-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #f87171;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font: 800 11px Manrope, sans-serif;
+  letter-spacing: .6px;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+  animation: liveBadgeGlow 2s ease-in-out infinite;
+}
+@keyframes liveBadgeGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.45); }
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  position: relative;
+  display: inline-block;
+}
+.pulse-dot:before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.45);
+  animation: pulseRingAnim 1.4s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+@keyframes pulseRingAnim {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+
+/* Live Card Border Glow */
+.match-interactive-card.is-live {
+  border: 2px solid #ef4444 !important;
+  background: linear-gradient(180deg, #fffafa 0%, #ffffff 100%) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), 0 12px 28px rgba(239, 68, 68, 0.15) !important;
+}
+.match-interactive-card.is-live .card-versus-box {
+  background: #fff5f5;
+  border-color: #fee2e2;
+}
+
+/* Starting Soon Badge */
+.starting-soon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fefce8;
+  color: #a16207;
+  border: 1px solid #fef08a;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font: 800 11px Manrope, sans-serif;
+  letter-spacing: .4px;
+}
+
+/* Live Row in Table */
+tr.table-row-live {
+  background: #fff5f5 !important;
+  border-left: 4px solid #ef4444 !important;
+}
+
+/* Live Banner Section on Home / Schedule */
+.live-banner-section {
+  padding-top: 24px;
+  padding-bottom: 12px;
+}
+.live-banner-card {
+  background: linear-gradient(135deg, #101d35 0%, #1e293b 100%);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 10px;
+  padding: 22px 26px;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 20px rgba(239, 68, 68, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.live-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+}
+.live-banner-header h3 {
+  margin: 0;
+  font: 800 16px Manrope, sans-serif;
+  letter-spacing: .5px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.live-banner-clock {
+  font: 700 12px 'DM Sans', sans-serif;
+  color: var(--gold-light);
+}
+.live-banner-matches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.live-banner-match-item {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.live-banner-match-item:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+.live-match-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 700 10px Manrope, sans-serif;
+  color: var(--gold-light);
+}
+.live-match-teams {
+  font: 800 14px Manrope, sans-serif;
+  color: #ffffff;
+  line-height: 1.4;
+}
+.live-match-venue {
+  font: 600 10px 'DM Sans', sans-serif;
+  color: #94a3b8;
+}
+
+/* Sports band right below hero spacing */
+.sports-band-top {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 50px 0 55px;
+}
