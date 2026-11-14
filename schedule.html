@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Event Schedule | H.P. Inter Polytechnic Sports Meet 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container nav-wrap">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">SP</span>
+      <span>
+        <b>H.P. INTER POLYTECHNIC</b>
+        <small>SPORTS MEET · 2026</small>
+      </span>
+    </a>
+    <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+    <nav class="nav-links">
+      <a href="index.html">Overview</a>
+      <a class="active" href="schedule.html">Schedule</a>
+      <a href="fixtures.html">Fixtures</a>
+      <a href="results.html">Results</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow"><span class="eyebrow-dot"></span> EVENT PROGRAMME</p>
+      <h1>Event <em>Schedule.</em></h1>
+      <p>Complete match timetable, dates, timings, pairings and venues across all 5 sports.</p>
+      <div class="breadcrumb"><a href="index.html">Home</a><span>/</span>Schedule</div>
+    </div>
+  </section>
+
+  <section class="container data-section">
+    <div class="data-toolbar">
+      <div>
+        <p class="eyebrow dark">OFFICIAL TIMETABLE</p>
+        <h2>Day-wise Match Schedule</h2>
+        <p class="muted">Filter by sport or search by college name, match number, date or round.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="data-status"><span id="update-status"><i class="live-dot"></i> Live Sheet Sync</span></div>
+        <button id="btn-refresh" class="refresh-btn" type="button" title="Fetch latest updates from Google Sheet">
+          <span class="spin-icon">↻</span> Refresh
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <label class="search-box">
+        <span>⌕</span>
+        <input id="search-input" type="search" placeholder="Search institute, round (e.g. Quarter Final), or match...">
+      </label>
+      <select id="sport-filter" aria-label="Filter by sport">
+        <option value="all">All sports</option>
+        <option>Badminton</option>
+        <option>Table Tennis</option>
+        <option>Volleyball</option>
+        <option>Basketball</option>
+        <option>Kabaddi</option>
+      </select>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>DATE / DAY</th>
+            <th>SPORT</th>
+            <th>MATCH & PAIRING</th>
+            <th>TIME</th>
+            <th>VENUE</th>
+          </tr>
+        </thead>
+        <tbody id="schedule-body">
+          <!-- Populated dynamically by app.js -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="empty-state" hidden>No schedule entries match your search.</div>
+    </div>
+
+    <div class="table-foot">
+      <span id="row-count">Loading matches...</span>
+      <span id="last-updated">Connecting to Google Sheet...</span>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <a class="brand footer-brand" href="index.html">
+      <span class="brand-mark">SP</span>
+      <span>
+        <b>H.P. INTER POLYTECHNIC</b>
+        <small>SPORTS MEET · 2026</small>
+      </span>
+    </a>
+    <p>Official event information portal · Govt. Polytechnic Hamirpur · 2026</p>
+    <span class="footer-top"><a href="#">Back to top ↑</a></span>
+  </div>
+</footer>
+
+<script src="assets/js/sheets.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
