@@ -63,18 +63,30 @@
   // Parse match date ("15-11-2026") and time ("8:00 am", "11:30 am", "12:00 NOON")
   function parseMatchDateTime(dateStr, timeStr) {
     if (!dateStr || !timeStr || timeStr === 'TBA') return null;
-    const dateParts = dateStr.split('-').map(Number);
+    const cleanDate = String(dateStr).trim();
+    const dateParts = cleanDate.split('-').map(Number);
     if (dateParts.length !== 3) return null;
     const [day, month, year] = dateParts;
 
-    let str = timeStr.trim().toLowerCase();
+    let str = String(timeStr).trim().toLowerCase();
     if (str.includes('noon')) str = '12:00 pm';
 
-    const m = str.match(/(\d+):(\d+)\s*(am|pm)/);
-    if (!m) return null;
-    let h = parseInt(m[1], 10);
-    const min = parseInt(m[2], 10);
-    const ampm = m[3];
+    let h = 0, min = 0, ampm = 'am';
+    const mColon = str.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/);
+    const mSimple = str.match(/(\d{1,2})\s*(am|pm)/);
+
+    if (mColon) {
+      h = parseInt(mColon[1], 10);
+      min = parseInt(mColon[2], 10);
+      ampm = mColon[3] || (h >= 12 ? 'pm' : 'am');
+    } else if (mSimple) {
+      h = parseInt(mSimple[1], 10);
+      min = 0;
+      ampm = mSimple[2];
+    } else {
+      return null;
+    }
+
     if (ampm === 'pm' && h < 12) h += 12;
     if (ampm === 'am' && h === 12) h = 0;
 
@@ -83,13 +95,14 @@
 
   // Live Match Engine: Calculates live status dynamically based on current date & time
   function getMatchLiveStatus(x, now = new Date()) {
-    if (x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match') {
+    // If winner is updated in the Google Sheet, match is ALWAYS completed - never live!
+    if (x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match' && String(x.winner).trim() !== '') {
       return 'COMPLETED';
     }
     const start = parseMatchDateTime(x.date, x.time);
     if (!start) return 'UPCOMING';
 
-    // Matches typically span ~50-60 minutes on court
+    // Matches typically span ~60 minutes on court
     const end = new Date(start.getTime() + 60 * 60 * 1000);
     const nowMs = now.getTime();
     const startMs = start.getTime();
@@ -254,7 +267,7 @@
     let cardLiveClass = '';
 
     if (hasWinner) {
-      statusPillHtml = `<span class="round-badge card-finished-badge">✓ Finished</span>`;
+      statusPillHtml = `<span class="round-badge card-winner-pill">🏆 Winner: ${esc(x.winner)}</span>`;
     } else if (liveStatus === 'LIVE') {
       cardLiveClass = 'is-live';
       statusPillHtml = `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE NOW</span>`;
@@ -310,7 +323,7 @@
 
         <div class="card-bottom-bar">
           ${hasWinner
-            ? `<span class="completed-result-pill"><span class="check-icon">✓</span> Match Concluded</span>`
+            ? `<span class="completed-result-pill" style="font-weight:800"><span class="check-icon">🏆</span> Winner: <strong>${esc(x.winner)}</strong></span>`
             : (liveStatus === 'LIVE'
               ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE ON COURT · ${esc(x.time || 'NOW')}</span>`
               : (liveStatus === 'STARTING_SOON'
@@ -337,6 +350,10 @@
 
     const now = new Date();
     const liveMatches = (allMatches || []).filter(m => {
+      // If winner is updated in the Google Sheet, match is completed - NOT live!
+      if (m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== '') {
+        return false;
+      }
       const st = getMatchLiveStatus(m, now);
       return st === 'LIVE' || st === 'STARTING_SOON';
     });
@@ -399,6 +416,49 @@
         `).join('');
       }
 
+      // Populate dedicated Live Match Cards Section in Overview
+      const liveOverviewGrid = document.querySelector('#live-matches-grid');
+      const liveOverviewSection = document.querySelector('#live-matches-section');
+      const liveEyebrow = document.querySelector('#live-section-eyebrow');
+      const liveTitle = document.querySelector('#live-section-title');
+      const liveDesc = document.querySelector('#live-section-desc');
+
+      if (liveOverviewGrid && data.schedule) {
+        const now = new Date();
+        const liveMatches = (data.schedule || []).filter(m => getMatchLiveStatus(m, now) === 'LIVE');
+        const soonMatches = (data.schedule || []).filter(m => getMatchLiveStatus(m, now) === 'STARTING_SOON');
+        const upcomingMatches = (data.schedule || []).filter(m => getMatchLiveStatus(m, now) === 'UPCOMING');
+        const completedWithWinner = (data.schedule || []).filter(m => Boolean(m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== ''));
+
+        if (liveMatches.length > 0) {
+          if (liveOverviewSection) liveOverviewSection.style.display = 'block';
+          if (liveEyebrow) liveEyebrow.innerHTML = `<span class="pulse-dot"></span> LIVE NOW ON COURT`;
+          if (liveTitle) liveTitle.innerHTML = `Live Matches in Progress <span style="font-size:16px;color:#ef4444;font-weight:700">(${liveMatches.length} Live)</span>`;
+          if (liveDesc) liveDesc.textContent = `Active matches happening right now on court at Govt. Polytechnic Hamirpur according to official tournament timings. Live scores and court action update in real time.`;
+          liveOverviewGrid.innerHTML = liveMatches.map(x => renderCard(x, 'schedule')).join('');
+        } else if (soonMatches.length > 0) {
+          if (liveOverviewSection) liveOverviewSection.style.display = 'block';
+          if (liveEyebrow) liveEyebrow.innerHTML = `<span class="pulse-dot" style="background:#eab308"></span> PRE-MATCH WARMUP`;
+          if (liveTitle) liveTitle.textContent = `Starting Soon on Court`;
+          if (liveDesc) liveDesc.textContent = `Teams are warming up on court. Matches will commence within minutes.`;
+          liveOverviewGrid.innerHTML = soonMatches.map(x => renderCard(x, 'schedule')).join('');
+        } else if (completedWithWinner.length > 0) {
+          const displayGroup = completedWithWinner.slice(-2).concat(upcomingMatches.slice(0, 2));
+          if (liveOverviewSection) liveOverviewSection.style.display = 'block';
+          if (liveEyebrow) liveEyebrow.innerHTML = `<span class="pulse-dot" style="background:var(--navy)"></span> TOURNAMENT MATCH CENTRE`;
+          if (liveTitle) liveTitle.textContent = `Latest Results & Next on Court`;
+          if (liveDesc) liveDesc.textContent = `Concluded matches showing official winners, followed by the next scheduled court fixtures.`;
+          liveOverviewGrid.innerHTML = displayGroup.map(x => renderCard(x, 'schedule')).join('');
+        } else {
+          const displayGroup = upcomingMatches.slice(0, 3);
+          if (liveOverviewSection) liveOverviewSection.style.display = 'block';
+          if (liveEyebrow) liveEyebrow.innerHTML = `<span class="pulse-dot"></span> SCHEDULED ON COURT`;
+          if (liveTitle) liveTitle.textContent = `Opening Matches Scheduled`;
+          if (liveDesc) liveDesc.textContent = `Opening fixtures scheduled on court. Live status activates automatically as match time arrives.`;
+          liveOverviewGrid.innerHTML = displayGroup.map(x => renderCard(x, 'schedule')).join('');
+        }
+      }
+
       const homeMatchesGrid = document.querySelector('#home-matches-grid');
       if (homeMatchesGrid && data.schedule) {
         homeMatchesGrid.innerHTML = data.schedule.slice(0, 6).map(x => renderCard(x, 'schedule')).join('');
@@ -421,7 +481,8 @@
       const tbody = document.querySelector('#schedule-body');
       if (tbody) {
         tbody.innerHTML = rows.map(x => {
-          const liveStatus = getMatchLiveStatus(x);
+          const hasWin = Boolean(x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match' && String(x.winner).trim() !== '');
+          const liveStatus = hasWin ? 'COMPLETED' : getMatchLiveStatus(x);
           const isLiveRow = liveStatus === 'LIVE' ? 'table-row-live' : '';
           return `
             <tr class="${isLiveRow}">
@@ -432,7 +493,10 @@
                   <div>
                     <span class="match-pill-id" style="font-size:9px;padding:2px 5px">M#${esc(x.matchNo)}</span>
                     ${getRoundBadgeHtml(x.round || x.event)}
-                    ${liveStatus === 'LIVE' ? `<span class="live-pulse-badge" style="font-size:9px;padding:2px 6px"><span class="pulse-dot"></span> LIVE</span>` : ''}
+                    ${hasWin 
+                      ? `<span class="round-badge card-winner-pill" style="font-size:9px;padding:2px 6px">🏆 Winner: ${esc(x.winner)}</span>` 
+                      : (liveStatus === 'LIVE' ? `<span class="live-pulse-badge" style="font-size:9px;padding:2px 6px"><span class="pulse-dot"></span> LIVE</span>` : '')
+                    }
                   </div>
                   <div class="pairing-names">
                     ${formatTablePairing(x)}
@@ -440,9 +504,12 @@
                 </div>
               </td>
               <td class="table-time-cell">
-                ${liveStatus === 'LIVE'
-                  ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE NOW (${esc(x.time)})</span>`
-                  : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time)}</span>`
+                ${hasWin
+                  ? `<span class="completed-result-pill" style="font-size:10px;font-weight:800"><span class="check-icon">🏆</span> Winner: <strong>${esc(x.winner)}</strong></span>`
+                  : (liveStatus === 'LIVE'
+                    ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE NOW (${esc(x.time)})</span>`
+                    : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time)}</span>`
+                  )
                 }
               </td>
               <td>${esc(x.venue)}</td>
