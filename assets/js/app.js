@@ -164,26 +164,111 @@
     }
   }
 
-  function renderCard(x, type = 'schedule') {
+  function isWinnerTeam(teamName, winnerName) {
+    if (!teamName || !winnerName || winnerName === '—' || winnerName === 'Awaiting Match') return false;
+    const cleanT = String(teamName).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanW = String(winnerName).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!cleanT || !cleanW) return false;
+    if (cleanT === cleanW) return true;
+    if (cleanT.includes(cleanW) || cleanW.includes(cleanT)) return true;
+
+    const stopWords = new Set(['polytechnic', 'govt', 'seed', 'bye', 'the', 'team', 'match', 'slot', 'draw', 'pending']);
+    const tokensW = String(winnerName).toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 2 && !stopWords.has(t));
+    const tokensT = String(teamName).toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 2 && !stopWords.has(t));
+    if (tokensW.length && tokensT.length) {
+      return tokensW.some(tw => tokensT.includes(tw));
+    }
+    return false;
+  }
+
+  function resolveCardTeamNames(x, allMatches) {
+    let teamA = x.teamA;
+    let teamB = x.teamB;
+
+    const findWinnerOfMatch = (sport, refNo) => {
+      const targetMatch = (allMatches || []).find(m => m.sport === sport && parseInt(m.matchNo) === parseInt(refNo));
+      if (targetMatch && targetMatch.winner && targetMatch.winner !== '—' && String(targetMatch.winner).trim() !== '') {
+        return targetMatch.winner;
+      }
+      return null;
+    };
+
+    const matchA = String(teamA).match(/winner\s+(?:of\s+)?(?:match\s+)?(\d+)/i);
+    if (matchA) {
+      const winnerName = findWinnerOfMatch(x.sport, matchA[1]);
+      if (winnerName) teamA = winnerName;
+    }
+
+    const matchB = String(teamB).match(/winner\s+(?:of\s+)?(?:match\s+)?(\d+)/i);
+    if (matchB) {
+      const winnerName = findWinnerOfMatch(x.sport, matchB[1]);
+      if (winnerName) teamB = winnerName;
+    }
+
+    return { teamA, teamB };
+  }
+
+  function formatTablePairing(x) {
+    const hasWinner = Boolean(x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match' && String(x.winner).trim() !== '');
+    if (!hasWinner) {
+      return `${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)}`;
+    }
+    const isTeamAWinner = isWinnerTeam(x.teamA, x.winner);
+    const isTeamBWinner = isWinnerTeam(x.teamB, x.winner);
+
+    if (isTeamAWinner) {
+      return `<strong style="color:#15803d">👑 ${esc(x.teamA)} (W)</strong> <span class="pairing-versus-sep">def.</span> <span style="opacity:0.65">${esc(x.teamB)}</span>`;
+    }
+    if (isTeamBWinner) {
+      return `<span style="opacity:0.65">${esc(x.teamA)}</span> <span class="pairing-versus-sep">lost to</span> <strong style="color:#15803d">👑 ${esc(x.teamB)} (W)</strong>`;
+    }
+    return `${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)} <span style="margin-left:6px;color:#15803d;font-weight:700">🏆 ${esc(x.winner)}</span>`;
+  }
+
+  function renderCard(rawMatch, type = 'schedule') {
+    const allRefMatches = (data.results || []).concat(data.schedule || []).concat(data.fixtures || []);
+    const { teamA, teamB } = resolveCardTeamNames(rawMatch, allRefMatches);
+    const x = { ...rawMatch, teamA, teamB };
+
     const sportClass = getSportBadgeClass(x.sport);
     const roundBadge = getRoundBadgeHtml(x.round || x.event);
-    const hasWinner = x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match';
-    const liveStatus = getMatchLiveStatus(x);
+    const hasWinner = Boolean(x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match' && String(x.winner).trim() !== '');
+    const liveStatus = hasWinner ? 'COMPLETED' : getMatchLiveStatus(x);
+
+    let isTeamAWinner = false;
+    let isTeamBWinner = false;
+    if (hasWinner) {
+      isTeamAWinner = isWinnerTeam(x.teamA, x.winner);
+      isTeamBWinner = isWinnerTeam(x.teamB, x.winner);
+      if (!isTeamAWinner && !isTeamBWinner) {
+        if (x.runnerUp && isWinnerTeam(x.teamA, x.runnerUp)) {
+          isTeamBWinner = true;
+        } else if (x.runnerUp && isWinnerTeam(x.teamB, x.runnerUp)) {
+          isTeamAWinner = true;
+        }
+      }
+    }
 
     let statusPillHtml = '';
     let cardLiveClass = '';
 
-    if (liveStatus === 'LIVE') {
+    if (hasWinner) {
+      statusPillHtml = `<span class="round-badge card-finished-badge">✓ Finished</span>`;
+    } else if (liveStatus === 'LIVE') {
       cardLiveClass = 'is-live';
       statusPillHtml = `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE NOW</span>`;
     } else if (liveStatus === 'STARTING_SOON') {
       statusPillHtml = `<span class="starting-soon-badge">⏱️ STARTING SOON</span>`;
-    } else if (hasWinner) {
-      statusPillHtml = `<span class="round-badge" style="background:#f0fdf4;color:#166534;font-weight:700">✓ Finished</span>`;
     }
 
+    const teamAClass = isTeamAWinner ? 'is-winner-team' : (isTeamBWinner ? 'is-defeated-team' : '');
+    const teamBClass = isTeamBWinner ? 'is-winner-team' : (isTeamAWinner ? 'is-defeated-team' : '');
+
+    const teamALabel = isTeamAWinner ? '🏆 WINNER' : (isTeamBWinner ? 'RUNNER UP' : 'TEAM 01');
+    const teamBLabel = isTeamBWinner ? '🏆 WINNER' : (isTeamAWinner ? 'RUNNER UP' : 'TEAM 02');
+
     return `
-      <article class="match-interactive-card ${cardLiveClass}">
+      <article class="match-interactive-card ${cardLiveClass} ${hasWinner ? 'is-completed-card' : ''}">
         <div class="card-top-bar">
           <div class="card-badges-left">
             <span class="match-pill-id">M#${esc(x.matchNo)}</span>
@@ -197,28 +282,40 @@
         </div>
 
         <div class="card-versus-box">
-          <div class="team-box team-a">
-            <span class="team-label-tag">TEAM 01</span>
-            <strong class="team-name-text">${esc(x.teamA)}</strong>
+          <div class="team-box team-a ${teamAClass}">
+            <span class="team-label-tag ${isTeamAWinner ? 'winner-label' : ''}">${teamALabel}</span>
+            <strong class="team-name-text">
+              ${isTeamAWinner ? '<span class="crown-icon">👑</span> ' : ''}${esc(x.teamA)}
+            </strong>
           </div>
-          <div class="vs-circle">${liveStatus === 'LIVE' ? '🔴' : 'VS'}</div>
-          <div class="team-box team-b">
-            <span class="team-label-tag">TEAM 02</span>
-            <strong class="team-name-text">${esc(x.teamB)}</strong>
+          <div class="vs-circle ${hasWinner ? 'vs-finished' : (liveStatus === 'LIVE' ? 'vs-live' : '')}">
+            ${hasWinner ? '🏆' : (liveStatus === 'LIVE' ? '🔴' : 'VS')}
+          </div>
+          <div class="team-box team-b ${teamBClass}">
+            <span class="team-label-tag ${isTeamBWinner ? 'winner-label' : ''}">${teamBLabel}</span>
+            <strong class="team-name-text">
+              ${isTeamBWinner ? '<span class="crown-icon">👑</span> ' : ''}${esc(x.teamB)}
+            </strong>
           </div>
         </div>
 
         ${hasWinner
-          ? `<div class="match-winner-badge">🏆 Winner: <strong>${esc(x.winner)}</strong> ${x.runnerUp && x.runnerUp !== '—' ? `<small style="margin-left:auto;color:#475569">RU: ${esc(x.runnerUp)}</small>` : ''}</div>`
-          : (type === 'results' ? `<div class="match-pending-badge">Status: Yet to be played</div>` : '')
+          ? `<div class="match-winner-badge">
+              <span>🏆 Winner: <strong class="winner-name">${esc(x.winner)}</strong></span>
+              ${x.runnerUp && x.runnerUp !== '—' ? `<span class="runner-up-label">Runner-Up: ${esc(x.runnerUp)}</span>` : ''}
+            </div>`
+          : (type === 'results' ? `<div class="match-pending-badge">Status: Match scheduled · Awaiting result</div>` : '')
         }
 
         <div class="card-bottom-bar">
-          ${liveStatus === 'LIVE'
-            ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE ON COURT · ${esc(x.time || 'NOW')}</span>`
-            : (liveStatus === 'STARTING_SOON'
-              ? `<span class="starting-soon-badge">⏱️ Warmup · Starts at ${esc(x.time)}</span>`
-              : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time || 'TBA')}</span>`
+          ${hasWinner
+            ? `<span class="completed-result-pill"><span class="check-icon">✓</span> Match Concluded</span>`
+            : (liveStatus === 'LIVE'
+              ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE ON COURT · ${esc(x.time || 'NOW')}</span>`
+              : (liveStatus === 'STARTING_SOON'
+                ? `<span class="starting-soon-badge">⏱️ Warmup · Starts at ${esc(x.time)}</span>`
+                : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time || 'TBA')}</span>`
+              )
             )
           }
           <span class="card-venue-info">
@@ -337,7 +434,7 @@
                     ${liveStatus === 'LIVE' ? `<span class="live-pulse-badge" style="font-size:9px;padding:2px 6px"><span class="pulse-dot"></span> LIVE</span>` : ''}
                   </div>
                   <div class="pairing-names">
-                    ${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)}
+                    ${formatTablePairing(x)}
                   </div>
                 </div>
               </td>
@@ -409,11 +506,11 @@
                   ${getRoundBadgeHtml(x.round)}
                 </div>
                 <div class="pairing-names">
-                  ${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)}
+                  ${formatTablePairing(x)}
                 </div>
               </div>
             </td>
-            <td><strong style="color:${x.winner && x.winner !== '—' ? '#166534' : 'inherit'}">${esc(x.winner)}</strong></td>
+            <td>${x.winner && x.winner !== '—' ? `<strong style="color:#166534">🏆 ${esc(x.winner)}</strong>` : '<span style="color:#94a3b8">Pending</span>'}</td>
             <td>${esc(x.runnerUp)}</td>
             <td>
               <span class="${x.status === 'Completed' ? 'status-live-tag' : 'time-highlight-pill'}">

@@ -2572,12 +2572,25 @@ window.SPORTS_INITIAL_DATA = {
     return str;
   }
 
-  function resolveBracketPairing(sport, matchNo, schedTeam1, schedTeam2, resTeam1, resTeam2) {
+  function resolveBracketPairing(sport, matchNo, schedTeam1, schedTeam2, resTeam1, resTeam2, resultsByMatchNo = {}) {
     function clean(val) {
       if (!val) return '';
       const str = String(val).trim();
       if (str.toUpperCase() === 'TBD' || str.toUpperCase() === 'TO BE DECIDED' || str === '—') return '';
       return str;
+    }
+
+    function resolveWinnerRef(teamStr) {
+      if (!teamStr || !resultsByMatchNo) return teamStr;
+      const m = String(teamStr).match(/winner\s+(?:of\s+)?(?:match\s+)?(\d+)/i);
+      if (m) {
+        const refMatchNo = parseInt(m[1]);
+        const prevRes = resultsByMatchNo[refMatchNo];
+        if (prevRes && prevRes.winner && prevRes.winner !== '—' && String(prevRes.winner).trim() !== '') {
+          return prevRes.winner;
+        }
+      }
+      return teamStr;
     }
 
     const drawSlotMap = {
@@ -2739,8 +2752,11 @@ window.SPORTS_INITIAL_DATA = {
       }
     }
 
-    const teamA = clean(schedTeam1) || clean(resTeam1) || fallbackA;
-    const teamB = clean(schedTeam2) || clean(resTeam2) || fallbackB;
+    let teamA = clean(schedTeam1) || clean(resTeam1) || fallbackA;
+    let teamB = clean(schedTeam2) || clean(resTeam2) || fallbackB;
+
+    teamA = resolveWinnerRef(teamA);
+    teamB = resolveWinnerRef(teamB);
 
     return { teamA, teamB };
   }
@@ -2838,7 +2854,7 @@ window.SPORTS_INITIAL_DATA = {
 
               const resMatch = resultsByMatchNo[matchNo] || {};
               const date = resMatch.date || '15-17 Nov 2026';
-              const pairing = resolveBracketPairing(s.name, matchNo, schedTeam1, schedTeam2, resMatch.team1, resMatch.team2);
+              const pairing = resolveBracketPairing(s.name, matchNo, schedTeam1, schedTeam2, resMatch.team1, resMatch.team2, resultsByMatchNo);
 
               localSchedule.push({
                 date: date,
