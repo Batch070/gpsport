@@ -80,8 +80,8 @@
         <p class="muted">Live verified match outcomes recorded directly by tournament referees and organizers.</p>
       </div>
       <div class="view-toggle">
-        <button id="view-cards-btn" class="view-btn active" type="button" title="Switch to Cards View">⊞ Cards</button>
-        <button id="view-table-btn" class="view-btn" type="button" title="Switch to Table View">☰ Table</button>
+        <button id="view-table-btn" class="view-btn active" type="button" title="Switch to Sport-wise Tables">☰ Sport Tables</button>
+        <button id="view-cards-btn" class="view-btn" type="button" title="Switch to Cards View">⊞ Cards</button>
       </div>
     </div>
 
@@ -100,27 +100,14 @@
       </select>
     </div>
 
-    <!-- Interactive Results Cards -->
-    <div class="interactive-cards-grid" id="results-cards">
-      <!-- Populated dynamically by app.js -->
+    <!-- Sport-wise Results Tables Wrap -->
+    <div id="results-table-wrap">
+      <!-- Populated dynamically sport-by-sport by app.js -->
     </div>
 
-    <!-- Results Table -->
-    <div class="table-wrap" id="results-table-wrap" style="display: none;">
-      <table>
-        <thead>
-          <tr>
-            <th>SPORT</th>
-            <th>MATCH & PAIRING</th>
-            <th>WINNER / INSTITUTE</th>
-            <th>RUNNER-UP</th>
-            <th>RESULT / STATUS</th>
-          </tr>
-        </thead>
-        <tbody id="results-body">
-          <!-- Populated dynamically by app.js -->
-        </tbody>
-      </table>
+    <!-- Interactive Results Cards -->
+    <div class="interactive-cards-grid" id="results-cards" style="display: none;">
+      <!-- Populated dynamically by app.js -->
     </div>
 
     <div class="empty-state" id="empty-state" hidden>No published results match your search.</div>

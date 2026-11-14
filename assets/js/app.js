@@ -120,7 +120,7 @@
   };
 
   // View mode switcher (Cards vs Table)
-  let currentView = 'cards';
+  let currentView = (page === 'results.html') ? 'table' : 'cards';
   function setView(view) {
     currentView = view;
     if (viewCardsBtn) viewCardsBtn.classList.toggle('active', view === 'cards');
@@ -143,6 +143,7 @@
 
   viewCardsBtn?.addEventListener('click', () => setView('cards'));
   viewTableBtn?.addEventListener('click', () => setView('table'));
+  setView(currentView);
 
   function filtered(items) {
     const q = (search?.value || '').toLowerCase().trim();
@@ -493,32 +494,91 @@
         cardsContainer.innerHTML = rows.map(x => renderCard(x, 'results')).join('');
       }
 
-      // Render Table View
-      const tbody = document.querySelector('#results-body');
-      if (tbody) {
-        tbody.innerHTML = rows.map(x => `
-          <tr>
-            <td><span class="sport-badge ${getSportBadgeClass(x.sport)}">${esc(x.sport)}</span></td>
-            <td>
-              <div class="table-team-pairing">
-                <div>
-                  <span class="match-pill-id" style="font-size:9px;padding:2px 5px">M#${esc(x.matchNo)}</span>
-                  ${getRoundBadgeHtml(x.round)}
+      // Render Sport-Wise Results Tables
+      const resTableWrap = document.querySelector('#results-table-wrap');
+      if (resTableWrap) {
+        const ALL_SPORTS = ['Badminton', 'Table Tennis', 'Volleyball', 'Basketball', 'Kabaddi'];
+        const selectedSport = filter?.value || 'all';
+        const sportsToShow = selectedSport === 'all' ? ALL_SPORTS : [selectedSport];
+
+        let html = '';
+        sportsToShow.forEach(sportName => {
+          const sportMatches = rows.filter(m => m.sport.toLowerCase() === sportName.toLowerCase() || m.sport.toLowerCase().includes(sportName.toLowerCase().replace(' ', '')));
+          if (sportMatches.length > 0) {
+            html += `
+              <div class="sport-result-section">
+                <div class="sport-result-header">
+                  <div class="sport-title-group">
+                    <span class="sport-badge ${getSportBadgeClass(sportName)}">${esc(sportName)}</span>
+                    <h3 class="sport-heading">${esc(sportName)} — Official Results</h3>
+                  </div>
+                  <span class="sport-match-count">${sportMatches.length} ${sportMatches.length === 1 ? 'Match' : 'Matches'} · Live Sheet Synced</span>
                 </div>
-                <div class="pairing-names">
-                  ${formatTablePairing(x)}
+                <div class="table-wrap">
+                  <table class="sport-results-table">
+                    <thead>
+                      <tr>
+                        <th style="width:75px">MATCH #</th>
+                        <th style="width:140px">ROUND</th>
+                        <th style="width:115px">DATE</th>
+                        <th>TEAM 1</th>
+                        <th>TEAM 2</th>
+                        <th>WINNER</th>
+                        <th>RUNNER-UP</th>
+                        <th style="width:110px">STATUS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${sportMatches.map(m => {
+                        const isWinner1 = isWinnerTeam(m.teamA, m.winner);
+                        const isWinner2 = isWinnerTeam(m.teamB, m.winner);
+                        const hasWin = Boolean(m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== '');
+                        const isCompleted = m.status === 'Completed' || hasWin;
+
+                        return `
+                          <tr>
+                            <td><span class="match-pill-id">M#${esc(m.matchNo)}</span></td>
+                            <td>${getRoundBadgeHtml(m.round)}</td>
+                            <td><span class="date-highlight-pill">📅 ${esc(m.date)}</span></td>
+                            <td>
+                              <span class="table-team-cell ${isWinner1 ? 'is-winner' : (hasWin ? 'is-loser' : '')}">
+                                ${isWinner1 ? '👑 ' : ''}${esc(m.teamA)}
+                              </span>
+                            </td>
+                            <td>
+                              <span class="table-team-cell ${isWinner2 ? 'is-winner' : (hasWin ? 'is-loser' : '')}">
+                                ${isWinner2 ? '👑 ' : ''}${esc(m.teamB)}
+                              </span>
+                            </td>
+                            <td>
+                              ${hasWin 
+                                ? `<span class="table-winner-cell">🏆 <strong>${esc(m.winner)}</strong></span>` 
+                                : `<span style="color:#94a3b8;font-size:12px">Awaiting Match</span>`
+                              }
+                            </td>
+                            <td>
+                              ${m.runnerUp && m.runnerUp !== '—' 
+                                ? `<span style="color:#475569;font-weight:600">${esc(m.runnerUp)}</span>` 
+                                : `<span style="color:#cbd5e1">—</span>`
+                              }
+                            </td>
+                            <td>
+                              <span class="table-status-pill ${isCompleted ? 'completed' : 'pending'}">
+                                ${isCompleted ? '✓ Concluded' : '⏰ Scheduled'}
+                              </span>
+                            </td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </td>
-            <td>${x.winner && x.winner !== '—' ? `<strong style="color:#166534">🏆 ${esc(x.winner)}</strong>` : '<span style="color:#94a3b8">Pending</span>'}</td>
-            <td>${esc(x.runnerUp)}</td>
-            <td>
-              <span class="${x.status === 'Completed' ? 'status-live-tag' : 'time-highlight-pill'}">
-                ${x.status === 'Completed' ? `🏆 Completed` : `⏰ ${esc(x.time || 'Scheduled')}`}
-              </span>
-            </td>
-          </tr>
-        `).join('');
+            `;
+          }
+        });
+
+        resTableWrap.innerHTML = html || `<div class="empty-state">No published results match your filter.</div>`;
       }
 
       if (count) count.textContent = `${rows.length} match ${rows.length === 1 ? 'result' : 'results'}`;

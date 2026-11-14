@@ -2762,7 +2762,7 @@ window.SPORTS_INITIAL_DATA = {
   }
 
   function fetchSheetGviz(sheetName) {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&tqx=out:json`;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&tqx=out:json&_t=${Date.now()}`;
     return fetch(url, { cache: 'no-store' })
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2800,7 +2800,7 @@ window.SPORTS_INITIAL_DATA = {
         else reject(new Error('No table data for ' + sheetName));
       };
 
-      script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&tqx=responseHandler:${callbackName}`;
+      script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&tqx=responseHandler:${callbackName}&_t=${Date.now()}`;
       script.onerror = function () {
         cleanup();
         reject(new Error('JSONP script error: ' + sheetName));
@@ -2857,25 +2857,25 @@ window.SPORTS_INITIAL_DATA = {
               const pairing = resolveBracketPairing(s.name, matchNo, schedTeam1, schedTeam2, resMatch.team1, resMatch.team2, resultsByMatchNo);
 
               localSchedule.push({
-                date: date,
+                date: resMatch.date || date,
                 sport: s.name,
                 matchNo,
-                round: round || `Match ${matchNo}`,
-                event: round || `Match ${matchNo}`,
+                round: resMatch.round || round || `Match ${matchNo}`,
+                event: resMatch.round || round || `Match ${matchNo}`,
                 time: time,
                 venue: 'Govt. Polytechnic Hamirpur (HP)',
-                teamA: pairing.teamA,
-                teamB: pairing.teamB,
+                teamA: resMatch.team1 || pairing.teamA,
+                teamB: resMatch.team2 || pairing.teamB,
                 winner: resMatch.winner || ''
               });
 
               localFixtures.push({
                 sport: s.name,
                 matchNo,
-                round: round || `Match ${matchNo}`,
-                teamA: pairing.teamA,
-                teamB: pairing.teamB,
-                date: date,
+                round: resMatch.round || round || `Match ${matchNo}`,
+                teamA: resMatch.team1 || pairing.teamA,
+                teamB: resMatch.team2 || pairing.teamB,
+                date: resMatch.date || date,
                 time: time,
                 venue: 'Govt. Polytechnic Hamirpur (HP)',
                 winner: resMatch.winner || '',
@@ -2886,18 +2886,41 @@ window.SPORTS_INITIAL_DATA = {
               localResults.push({
                 sport: s.name,
                 matchNo,
-                round: round || `Match ${matchNo}`,
-                teamA: pairing.teamA,
-                teamB: pairing.teamB,
+                round: resMatch.round || round || `Match ${matchNo}`,
+                teamA: resMatch.team1 || pairing.teamA,
+                teamB: resMatch.team2 || pairing.teamB,
                 winner: resMatch.winner || '—',
                 runnerUp: resMatch.runnerUp || '—',
                 score: resMatch.winner ? `Winner: ${resMatch.winner}` : 'Yet to be played',
-                date: date || '15-17 Nov 2026',
+                date: resMatch.date || date || '15-17 Nov 2026',
+                time: time || 'TBA',
                 status: resMatch.winner ? 'Completed' : 'Upcoming'
               });
             }
           });
         }
+
+        // Include any additional matches recorded in the Results sheet
+        Object.keys(resultsByMatchNo).forEach(mNoStr => {
+          const mNo = parseInt(mNoStr);
+          if (!isNaN(mNo) && !localResults.some(r => r.matchNo === mNo)) {
+            const rm = resultsByMatchNo[mNo];
+            localResults.push({
+              sport: s.name,
+              matchNo: mNo,
+              round: rm.round || `Match ${mNo}`,
+              teamA: rm.team1 || 'Team 1',
+              teamB: rm.team2 || 'Team 2',
+              winner: rm.winner || '—',
+              runnerUp: rm.runnerUp || '—',
+              score: rm.winner ? `Winner: ${rm.winner}` : 'Yet to be played',
+              date: rm.date || '15-17 Nov 2026',
+              time: 'TBA',
+              status: rm.winner ? 'Completed' : 'Upcoming'
+            });
+          }
+        });
+        localResults.sort((a, b) => a.matchNo - b.matchNo);
 
         return { localSchedule, localFixtures, localResults };
       });
