@@ -459,9 +459,37 @@
         }
       }
 
+      // SCHEDULE HIGHLIGHTS: Show the single next upcoming match for each of the 5 disciplines
+      // Automatically rolls forward to the next match as each game concludes or starts!
       const homeMatchesGrid = document.querySelector('#home-matches-grid');
       if (homeMatchesGrid && data.schedule) {
-        homeMatchesGrid.innerHTML = data.schedule.slice(0, 6).map(x => renderCard(x, 'schedule')).join('');
+        const ALL_DISCIPLINES = ['Badminton', 'Table Tennis', 'Volleyball', 'Basketball', 'Kabaddi'];
+        const now = new Date();
+
+        const disciplineHighlights = ALL_DISCIPLINES.map(sport => {
+          const sportMatches = data.schedule.filter(m => 
+            m.sport.toLowerCase() === sport.toLowerCase() || 
+            m.sport.toLowerCase().includes(sport.toLowerCase().replace(' ', ''))
+          );
+          if (!sportMatches.length) return null;
+
+          // 1. Look for match currently LIVE
+          const liveMatch = sportMatches.find(m => getMatchLiveStatus(m, now) === 'LIVE');
+          if (liveMatch) return liveMatch;
+
+          // 2. Look for match STARTING SOON (<20 mins)
+          const soonMatch = sportMatches.find(m => getMatchLiveStatus(m, now) === 'STARTING_SOON');
+          if (soonMatch) return soonMatch;
+
+          // 3. Look for the next upcoming match that does not have a winner yet
+          const nextPendingMatch = sportMatches.find(m => !Boolean(m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== ''));
+          if (nextPendingMatch) return nextPendingMatch;
+
+          // 4. If all matches for this sport are completed, show the final championship match with crowned winner
+          return sportMatches[sportMatches.length - 1];
+        }).filter(Boolean);
+
+        homeMatchesGrid.innerHTML = disciplineHighlights.map(x => renderCard(x, 'schedule')).join('');
       }
 
       updateLiveBanner(data.schedule);
