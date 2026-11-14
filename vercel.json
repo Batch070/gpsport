@@ -1,4 +1,8 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/fixtures", "destination": "/schedule", "permanent": true },
+    { "source": "/fixtures.html", "destination": "/schedule", "permanent": true }
+  ]
 }
