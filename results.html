@@ -35,7 +35,7 @@
     <div class="container">
       <p class="eyebrow"><span class="eyebrow-dot"></span> OFFICIAL SCOREBOARD</p>
       <h1>Results & <em>Standings.</em></h1>
-      <p>Published tournament outcomes, champions list, and official match scorecards.</p>
+      <p>Published tournament outcomes, champions leaderboard, and official match scorecards.</p>
       <div class="breadcrumb"><a href="index.html">Home</a><span>/</span>Results</div>
     </div>
   </section>
@@ -72,12 +72,16 @@
       </table>
     </div>
 
-    <!-- Match Results -->
+    <!-- Match Results Toolbar -->
     <div class="data-toolbar">
       <div>
         <p class="eyebrow dark">DETAILED SCORECARDS</p>
         <h2>Match-wise Results</h2>
         <p class="muted">Live verified match outcomes recorded directly by tournament referees and organizers.</p>
+      </div>
+      <div class="view-toggle">
+        <button id="view-cards-btn" class="view-btn active" type="button" title="Switch to Cards View">⊞ Cards</button>
+        <button id="view-table-btn" class="view-btn" type="button" title="Switch to Table View">☰ Table</button>
       </div>
     </div>
 
@@ -96,7 +100,13 @@
       </select>
     </div>
 
-    <div class="table-wrap">
+    <!-- Interactive Results Cards -->
+    <div class="interactive-cards-grid" id="results-cards">
+      <!-- Populated dynamically by app.js -->
+    </div>
+
+    <!-- Results Table -->
+    <div class="table-wrap" id="results-table-wrap" style="display: none;">
       <table>
         <thead>
           <tr>
@@ -111,8 +121,9 @@
           <!-- Populated dynamically by app.js -->
         </tbody>
       </table>
-      <div class="empty-state" id="empty-state" hidden>No published results match your search.</div>
     </div>
+
+    <div class="empty-state" id="empty-state" hidden>No published results match your search.</div>
 
     <div class="table-foot">
       <span id="row-count">Loading results...</span>

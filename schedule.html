@@ -35,7 +35,7 @@
     <div class="container">
       <p class="eyebrow"><span class="eyebrow-dot"></span> EVENT PROGRAMME</p>
       <h1>Event <em>Schedule.</em></h1>
-      <p>Complete match timetable, dates, timings, pairings and venues across all 5 sports.</p>
+      <p>Complete match timetable, dates, highlighted timings, pairings and venues across all 5 sports.</p>
       <div class="breadcrumb"><a href="index.html">Home</a><span>/</span>Schedule</div>
     </div>
   </section>
@@ -45,9 +45,13 @@
       <div>
         <p class="eyebrow dark">OFFICIAL TIMETABLE</p>
         <h2>Day-wise Match Schedule</h2>
-        <p class="muted">Filter by sport or search by college name, match number, date or round.</p>
+        <p class="muted">Browse all matches with highlighted timings and interactive cards.</p>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="view-toggle">
+          <button id="view-cards-btn" class="view-btn active" type="button" title="Switch to Cards View">⊞ Cards</button>
+          <button id="view-table-btn" class="view-btn" type="button" title="Switch to Table View">☰ Table</button>
+        </div>
         <div class="data-status"><span id="update-status"><i class="live-dot"></i> Live Sheet Sync</span></div>
         <button id="btn-refresh" class="refresh-btn" type="button" title="Fetch latest updates from Google Sheet">
           <span class="spin-icon">↻</span> Refresh
@@ -58,7 +62,7 @@
     <div class="filter-row">
       <label class="search-box">
         <span>⌕</span>
-        <input id="search-input" type="search" placeholder="Search institute, round (e.g. Quarter Final), or match...">
+        <input id="search-input" type="search" placeholder="Search institute, round (e.g. Final, Quarter), or match...">
       </label>
       <select id="sport-filter" aria-label="Filter by sport">
         <option value="all">All sports</option>
@@ -70,7 +74,13 @@
       </select>
     </div>
 
-    <div class="table-wrap">
+    <!-- Interactive Cards View -->
+    <div class="interactive-cards-grid" id="schedule-cards">
+      <!-- Populated dynamically by app.js -->
+    </div>
+
+    <!-- Table View -->
+    <div class="table-wrap" id="schedule-table-wrap" style="display: none;">
       <table>
         <thead>
           <tr>
@@ -85,8 +95,9 @@
           <!-- Populated dynamically by app.js -->
         </tbody>
       </table>
-      <div class="empty-state" id="empty-state" hidden>No schedule entries match your search.</div>
     </div>
+
+    <div class="empty-state" id="empty-state" hidden>No schedule entries match your search criteria.</div>
 
     <div class="table-foot">
       <span id="row-count">Loading matches...</span>
