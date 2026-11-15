@@ -113,34 +113,6 @@
       </div>
     </section>
 
-    <!-- Live on Court Match Banner (Visible automatically when matches are active) -->
-    <section class="live-banner-section container" id="live-banner-section" style="display: none;">
-      <div class="live-banner-card">
-        <div class="live-banner-header">
-          <h3><span class="pulse-dot"></span> LIVE NOW ON COURT</h3>
-          <span class="live-banner-clock" id="live-banner-clock">Live updates in progress</span>
-        </div>
-        <div class="live-banner-matches-grid" id="live-banner-content">
-          <!-- Injected automatically by live match engine in app.js -->
-        </div>
-      </div>
-    </section>
-
-    <!-- Live Match Centre Section in Overview -->
-    <section class="section container" id="live-matches-section" style="padding-top: 35px; padding-bottom: 25px;">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow dark" id="live-section-eyebrow"><span class="pulse-dot"></span> LIVE MATCH CENTRE</p>
-          <h2 id="live-section-title">Matches on Court</h2>
-        </div>
-        <p class="section-intro" id="live-section-desc">Active matches happening live on court according to the official
-          tournament schedule. Live cards show in real time.</p>
-      </div>
-      <div class="interactive-cards-grid" id="live-matches-grid">
-        <!-- Injected automatically by live match engine in app.js -->
-      </div>
-    </section>
-
     <!-- Live Match Centre Section in Overview -->
     <section class="section container" id="live-matches-section" style="padding-top: 35px; padding-bottom: 25px;">
       <div class="section-heading">
@@ -211,17 +183,17 @@
       </div>
     </section>
 
-    <!-- Today's Match Winners Section (Replacing Schedule Highlights) -->
+    <!-- Today's Match Winners Section (Sport-Wise Tables) -->
     <section class="section container" id="today-winners-section" style="padding-top: 10px; padding-bottom: 50px;">
       <div class="section-heading">
         <div>
           <p class="eyebrow dark">TODAY'S WINNERS</p>
           <h2 id="today-winners-title">Match Winners of the Day</h2>
         </div>
-        <p class="section-intro" id="today-winners-desc">Official match winners and published results across all sporting disciplines for today. <a class="text-link" href="results.html" style="color:var(--navy);font-weight:700;display:inline-block;margin-left:6px">View all results <span>→</span></a></p>
+        <p class="section-intro" id="today-winners-desc">Official match winners and published results across all sporting disciplines for today grouped sport-wise. <a class="text-link" href="results.html" style="color:var(--navy);font-weight:700;display:inline-block;margin-left:6px">View full tournament results <span>→</span></a></p>
       </div>
-      <div class="interactive-cards-grid" id="today-winners-grid">
-        <!-- Populated dynamically by app.js with today's winners -->
+      <div id="today-winners-tables-wrap">
+        <!-- Populated dynamically by app.js with sport-wise tables -->
       </div>
     </section>
 

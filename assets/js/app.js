@@ -700,15 +700,16 @@
         }
       }
 
-      // TODAY'S MATCH WINNERS: Shows match winners of today (or latest concluded matches)
-      const todayWinnersGrid = document.querySelector('#today-winners-grid');
+      // TODAY'S MATCH WINNERS: Shows match winners of today grouped sport-wise in tables
+      const todayWinnersContainer = document.querySelector('#today-winners-tables-wrap') || document.querySelector('#today-winners-grid');
       const todayWinnersTitle = document.querySelector('#today-winners-title');
       const todayWinnersDesc = document.querySelector('#today-winners-desc');
 
-      if (todayWinnersGrid) {
+      if (todayWinnersContainer) {
         const now = new Date();
         const todayDateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
         const allMatches = (data.results || []).concat(data.schedule || []).map(applyAdminOverride);
+        const allRefMatches = (data.results || []).concat(data.schedule || []).concat(data.fixtures || []).map(applyAdminOverride);
 
         // Find matches with winners
         const seen = new Set();
@@ -723,27 +724,137 @@
         });
 
         // Filter for today's winners
-        const todayWinners = matchesWithWinners.filter(m => m.date === todayDateStr);
+        let displayWinners = matchesWithWinners.filter(m => m.date === todayDateStr);
+        let isExactToday = true;
+        if (displayWinners.length === 0 && matchesWithWinners.length > 0) {
+          displayWinners = matchesWithWinners;
+          isExactToday = false;
+        }
 
-        if (todayWinners.length > 0) {
-          if (todayWinnersTitle) todayWinnersTitle.textContent = `Match Winners of the Day (${todayWinners.length} Decided)`;
-          if (todayWinnersDesc) todayWinnersDesc.innerHTML = `Official match winners crowned today (<strong>${todayDateStr}</strong>) across all disciplines. <a class="text-link" href="results.html" style="color:var(--navy);font-weight:700;display:inline-block;margin-left:6px">View all tournament results <span>→</span></a>`;
-          todayWinnersGrid.innerHTML = todayWinners.map(x => renderCard(x, 'results')).join('');
-        } else if (matchesWithWinners.length > 0) {
-          // If none on today's exact date yet, show latest tournament winners
-          if (todayWinnersTitle) todayWinnersTitle.textContent = `Latest Match Winners (${matchesWithWinners.length} Concluded)`;
-          if (todayWinnersDesc) todayWinnersDesc.innerHTML = `Latest concluded matches showing crowned winners. Today's match winners will appear here as ongoing games finish. <a class="text-link" href="results.html" style="color:var(--navy);font-weight:700;display:inline-block;margin-left:6px">View all results <span>→</span></a>`;
-          todayWinnersGrid.innerHTML = matchesWithWinners.slice(0, 6).map(x => renderCard(x, 'results')).join('');
+        if (displayWinners.length > 0) {
+          if (todayWinnersTitle) {
+            todayWinnersTitle.textContent = `Match Winners of the Day (${displayWinners.length} Decided)`;
+          }
+          if (todayWinnersDesc) {
+            todayWinnersDesc.innerHTML = `Official match winners crowned ${isExactToday ? `today (<strong>${todayDateStr}</strong>)` : `in concluded fixtures`} across all disciplines, presented sport-wise in official scorecard tables. <a class="text-link" href="results.html" style="color:var(--navy);font-weight:700;display:inline-block;margin-left:6px">View full tournament results <span>→</span></a>`;
+          }
+
+          const ALL_SPORTS = ['Badminton', 'Table Tennis', 'Volleyball', 'Basketball', 'Kabaddi'];
+          let tablesHtml = '';
+
+          ALL_SPORTS.forEach(sportName => {
+            const sportWinners = displayWinners.filter(m =>
+              m.sport.toLowerCase() === sportName.toLowerCase() ||
+              m.sport.toLowerCase().includes(sportName.toLowerCase().replace(' ', ''))
+            );
+
+            if (sportWinners.length > 0) {
+              sportWinners.sort((a, b) => (parseInt(a.matchNo) || 0) - (parseInt(b.matchNo) || 0));
+
+              tablesHtml += `
+                <div class="sport-result-section">
+                  <div class="sport-result-header">
+                    <div class="sport-title-group">
+                      <span class="sport-badge ${getSportBadgeClass(sportName)}">${esc(sportName)}</span>
+                      <h3 class="sport-heading">${esc(sportName)} — Match Winners</h3>
+                    </div>
+                    <span class="sport-match-count">${sportWinners.length} ${sportWinners.length === 1 ? 'Winner' : 'Winners'} Decided</span>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="sport-results-table">
+                      <thead>
+                        <tr>
+                          <th style="width:75px">MATCH #</th>
+                          <th style="width:130px">ROUND</th>
+                          <th style="width:105px">DATE</th>
+                          <th>TEAM 1</th>
+                          <th>TEAM 2</th>
+                          <th>WINNER</th>
+                          <th>RUNNER-UP</th>
+                          <th style="width:115px">STATUS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${sportWinners.map(m => {
+                          const { teamA, teamB } = resolveCardTeamNames(m, allRefMatches);
+                          const isWinner1 = isWinnerTeam(teamA, m.winner);
+                          const isWinner2 = isWinnerTeam(teamB, m.winner);
+                          const hasWin = Boolean(m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== '');
+
+                          let runnerUpName = m.runnerUp;
+                          if (!runnerUpName || runnerUpName === '—' || runnerUpName === 'TBD') {
+                            if (isWinner1 && teamB) runnerUpName = teamB;
+                            else if (isWinner2 && teamA) runnerUpName = teamA;
+                            else runnerUpName = '—';
+                          }
+
+                          const mediaCache = getMediaCache();
+                          const mediaInfo = mediaCache[`${m.sport}_${m.matchNo}`];
+                          const mediaBtn = (mediaInfo && mediaInfo.count > 0) ? `
+                            <button type="button" class="match-media-btn" style="padding:2px 7px;font-size:9px" onclick="window.viewMatchMedia('${esc(m.sport)}', ${m.matchNo})">📷 ${mediaInfo.count}</button>
+                          ` : '';
+
+                          return `
+                            <tr>
+                              <td>
+                                <span class="match-pill-id">M#${esc(m.matchNo)}</span>
+                                ${mediaBtn}
+                              </td>
+                              <td>${getRoundBadgeHtml(m.round || m.event)}</td>
+                              <td><span class="date-highlight-pill">📅 ${esc(m.date)}</span></td>
+                              <td>
+                                <span class="table-team-cell ${isWinner1 ? 'is-winner' : (hasWin ? 'is-loser' : '')}">
+                                  ${isWinner1 ? '👑 ' : ''}${esc(teamA)}
+                                </span>
+                              </td>
+                              <td>
+                                <span class="table-team-cell ${isWinner2 ? 'is-winner' : (hasWin ? 'is-loser' : '')}">
+                                  ${isWinner2 ? '👑 ' : ''}${esc(teamB)}
+                                </span>
+                              </td>
+                              <td>
+                                <span class="table-winner-cell">🏆 <strong>${esc(m.winner)}</strong></span>
+                                ${(m.scoreTeam1 || m.scoreTeam2 || m.scoreSummary) ? `
+                                  <div style="font-size:11px;color:#854d0e;font-weight:700;margin-top:2px;">
+                                    ⚡ Score: ${esc(m.scoreTeam1 || 0)} - ${esc(m.scoreTeam2 || 0)}
+                                  </div>
+                                ` : ''}
+                              </td>
+                              <td>
+                                ${runnerUpName && runnerUpName !== '—'
+                                  ? `<span style="color:#475569;font-weight:600">${esc(runnerUpName)}</span>`
+                                  : `<span style="color:#cbd5e1">—</span>`
+                                }
+                              </td>
+                              <td>
+                                <span class="table-status-pill completed">✓ Concluded</span>
+                              </td>
+                            </tr>
+                          `;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              `;
+            }
+          });
+
+          todayWinnersContainer.innerHTML = tablesHtml || `
+            <div class="highlights-placeholder-card">
+              <p style="color:#64748b;margin:0;">No match winners decided today yet.</p>
+            </div>
+          `;
         } else {
           // No winners decided yet
           if (todayWinnersTitle) todayWinnersTitle.textContent = `Today's Match Winners`;
-          if (todayWinnersDesc) todayWinnersDesc.innerHTML = `Matches for Day 1 (<strong>${todayDateStr}</strong>) are currently in progress on court. Winners will be updated automatically as soon as each scorecard concludes.`;
-          todayWinnersGrid.innerHTML = `
+          if (todayWinnersDesc) todayWinnersDesc.innerHTML = `Matches for Day 1 (<strong>${todayDateStr}</strong>) are currently in progress on court. Winners will appear in sport-wise tables as scorecards conclude.`;
+          todayWinnersContainer.innerHTML = `
             <div class="highlights-placeholder-card" style="grid-column: 1 / -1;">
               <div style="font-size:32px;margin-bottom:8px;">🏆</div>
               <strong style="color:#fff;font-size:16px;display:block;margin-bottom:6px;">Today's Matches in Progress</strong>
               <p style="color:#94a3b8;font-size:13px;margin:0 auto;max-width:520px;">
-                Opening round matches for today (${todayDateStr}) are currently underway on court at Govt. Polytechnic Hamirpur. As match scorecards conclude and official winners are entered, winner cards will appear right here.
+                Opening round matches for today (${todayDateStr}) are currently underway on court at Govt. Polytechnic Hamirpur. As match scorecards conclude and official winners are entered, sport-wise winner tables will appear right here.
               </p>
               <div style="margin-top:14px;">
                 <a href="schedule.html" class="btn btn-gold" style="font-size:12px;padding:8px 18px;">View Live Timetable & Schedule →</a>
