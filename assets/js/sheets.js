@@ -7,7 +7,8 @@
 window.SPORTS_CONFIG = {
   SHEET_ID: "1y0masQaA-ulnkQshPy7_Rno8837PkYcN",
   REFRESH_INTERVAL_MS: 30000,
-  AUTO_REFRESH: true
+  AUTO_REFRESH: true,
+  CLOUD_SYNC_URL: ""
 };
 
 // Initial data snapshot generated from the live Google Sheet

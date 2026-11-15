@@ -1193,6 +1193,14 @@
       refreshBtn.classList.add('spinning');
       refreshBtn.disabled = true;
     }
+
+    // Pull latest cloud overrides so admin updates reflect on all phones & devices
+    if (window.AdminStorage && typeof window.AdminStorage.pullFromCloud === 'function') {
+      try {
+        await window.AdminStorage.pullFromCloud();
+      } catch {}
+    }
+
     if (typeof window.loadSportsData === 'function') {
       data = await window.loadSportsData(true);
     }
@@ -1217,8 +1225,13 @@
   // Then fetch fresh data immediately
   refresh();
 
-  // Background IndexedDB cache sync
+  // Background Cloud & IndexedDB cache sync
   if (window.AdminStorage) {
+    if (typeof window.AdminStorage.pullFromCloud === 'function') {
+      window.AdminStorage.pullFromCloud().then(updated => {
+        if (updated) render();
+      }).catch(() => {});
+    }
     window.AdminStorage.getAllOverrides().then(() => render());
     window.AdminStorage.getMediaSummary().then(() => render());
   }

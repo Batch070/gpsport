@@ -543,6 +543,10 @@
       <span class="admin-stat-pill live" id="stat-live-count">🔴 0 Live</span>
       <span class="admin-stat-pill delayed" id="stat-delayed-count">⏱️ 0 Delayed</span>
       <span class="admin-stat-pill completed" id="stat-completed-count">✓ 0 Concluded</span>
+      <button type="button" id="btn-cloud-sync" style="background:#1e3a8a;color:#93c5fd;border:1px solid #3b82f6;padding:6px 12px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+        <span id="cloud-sync-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#eab308;"></span>
+        <span id="cloud-sync-status-text">Cloud Sync</span>
+      </button>
       <button type="button" id="btn-admin-logout" style="background:#334155;color:#fff;border:none;padding:6px 12px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">Lock Panel</button>
     </div>
   </div>
@@ -697,6 +701,76 @@
       <div style="display:flex;gap:8px;">
         <button type="button" class="btn-cancel-modal" id="btn-cancel-modal">Cancel</button>
         <button type="button" class="btn-save-modal" id="btn-save-match">💾 Save Match</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Multi-Device Cloud Sync Modal -->
+<div class="admin-modal" id="cloud-sync-modal">
+  <div class="admin-modal-window" style="max-width:620px;">
+    <div class="admin-modal-head">
+      <div>
+        <h2 style="font-size:17px;margin:0 0 4px 0;">☁️ Multi-Device Cloud Sync</h2>
+        <small style="color:var(--gold-light);font-size:12px;">Broadcast scores, live status, and winners to ALL phones & PCs instantly</small>
+      </div>
+      <button type="button" class="btn-modal-close" id="btn-close-cloud-modal" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="admin-modal-body" style="display:flex;flex-direction:column;gap:16px;">
+      <!-- Status Box -->
+      <div id="cloud-sync-status-box" style="padding:12px 14px;border-radius:6px;background:rgba(234,179,8,0.12);border:1px solid #eab308;color:#fef08a;font-size:13px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">⚠️</span>
+        <div style="flex:1;">
+          <strong id="cloud-sync-banner-title" style="display:block;margin-bottom:2px;">Currently in Local-Only Mode</strong>
+          <span id="cloud-sync-banner-desc" style="font-size:12px;opacity:0.9;">Your updates are only saved in this browser. Connect your free Google Sheet Web App below so every phone & device sees updates live!</span>
+        </div>
+      </div>
+
+      <!-- Turnkey Setup Instructions -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:14px 16px;">
+        <strong style="color:#fff;font-size:13px;display:block;margin-bottom:8px;">Easy 1-Minute Setup via Google Sheet:</strong>
+        <ol style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;font-size:12px;line-height:1.6;">
+          <li>Open your Google Sheet: <a href="https://docs.google.com/spreadsheets/d/1y0masQaA-ulnkQshPy7_Rno8837PkYcN/edit" target="_blank" style="color:var(--gold-light);font-weight:700;">Open Sheet ↗</a></li>
+          <li>Click <strong>Extensions &gt; Apps Script</strong> and paste the 15-line script below.</li>
+          <li>Click <strong>Deploy &gt; New deployment &gt; Web app</strong> (Set <em>Who has access</em> to <strong>Anyone</strong>).</li>
+          <li>Copy the generated Web App URL and paste it below!</li>
+        </ol>
+        <button type="button" id="btn-copy-apps-script" style="background:#334155;color:#fff;border:1px solid #64748b;padding:6px 14px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">📋 Copy Google Apps Script Code</button>
+      </div>
+
+      <!-- Cloud Sync URL Input -->
+      <div>
+        <label for="input-cloud-sync-url" style="display:block;font:800 11px Manrope;color:#cbd5e1;margin-bottom:6px;text-transform:uppercase;">Cloud Sync Web App / Firebase URL:</label>
+        <div style="display:flex;gap:8px;">
+          <input type="url" class="form-input" id="input-cloud-sync-url" placeholder="https://script.google.com/macros/s/.../exec" style="flex:1;">
+          <button type="button" id="btn-save-cloud-url" style="background:var(--gold);color:#0b1323;border:none;border-radius:4px;padding:0 16px;font:800 12px Manrope;cursor:pointer;">Connect & Sync</button>
+        </div>
+      </div>
+
+      <!-- Instant Mobile Share Link -->
+      <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;padding:12px 14px;">
+        <strong style="color:#93c5fd;font-size:12px;display:block;margin-bottom:4px;">📱 Open on Your Phone (Auto-Synced):</strong>
+        <p style="color:#bfdbfe;font-size:11px;margin:0 0 8px 0;">Use this 1-click link to open Admin Panel on your phone with cloud sync pre-configured:</p>
+        <div style="display:flex;gap:8px;">
+          <input type="text" class="form-input" id="input-phone-share-link" readonly style="flex:1;font-size:11px;color:#94a3b8;" value="">
+          <button type="button" id="btn-copy-phone-link" style="background:#2563eb;color:#fff;border:none;border-radius:4px;padding:0 14px;font:700 11px Manrope;cursor:pointer;">Copy Link</button>
+        </div>
+      </div>
+
+      <!-- Backup / Restore Row -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="btn-push-cloud" style="background:#16a34a;color:#fff;border:none;padding:7px 14px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">⬆️ Push Local Data to Cloud</button>
+          <button type="button" id="btn-pull-cloud" style="background:#0284c7;color:#fff;border:none;padding:7px 14px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">⬇️ Pull from Cloud</button>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="btn-export-backup" style="background:#334155;color:#cbd5e1;border:none;padding:7px 12px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">💾 Export JSON</button>
+          <label style="background:#334155;color:#cbd5e1;border:none;padding:7px 12px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;display:inline-block;">
+            📥 Import JSON
+            <input type="file" id="input-import-backup" accept=".json" style="display:none;">
+          </label>
+        </div>
       </div>
     </div>
   </div>

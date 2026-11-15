@@ -635,16 +635,199 @@
     closeModal();
   });
 
-  // Backup Export
-  document.querySelector('#btn-backup-data')?.addEventListener('click', async () => {
-    const overrides = await window.AdminStorage.getAllOverrides();
-    const blob = new Blob([JSON.stringify(overrides, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `sports_meet_admin_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
+  // Cloud Sync Controller
+  const cloudModal = document.querySelector('#cloud-sync-modal');
+  const btnCloudSync = document.querySelector('#btn-cloud-sync');
+  const btnCloseCloud = document.querySelector('#btn-close-cloud-modal');
+  const cloudDot = document.querySelector('#cloud-sync-dot');
+  const cloudStatusText = document.querySelector('#cloud-sync-status-text');
+  const cloudStatusBox = document.querySelector('#cloud-sync-status-box');
+  const cloudBannerTitle = document.querySelector('#cloud-sync-banner-title');
+  const cloudBannerDesc = document.querySelector('#cloud-sync-banner-desc');
+  const inputCloudUrl = document.querySelector('#input-cloud-sync-url');
+  const btnSaveCloudUrl = document.querySelector('#btn-save-cloud-url');
+  const btnCopyScript = document.querySelector('#btn-copy-apps-script');
+  const inputPhoneLink = document.querySelector('#input-phone-share-link');
+  const btnCopyPhoneLink = document.querySelector('#btn-copy-phone-link');
+  const btnPushCloud = document.querySelector('#btn-push-cloud');
+  const btnPullCloud = document.querySelector('#btn-pull-cloud');
+  const btnExportBackup = document.querySelector('#btn-export-backup');
+  const inputImportBackup = document.querySelector('#input-import-backup');
+
+  const GOOGLE_APPS_SCRIPT_TEMPLATE = `// 28th H.P. Inter-Polytechnic Sports Meet 2026 - Multi-Device Cloud Sync Bridge
+function doGet(e) {
+  var props = PropertiesService.getScriptProperties();
+  var data = props.getProperty('ADMIN_OVERRIDES') || '{"overrides":{}}';
+  return ContentService.createTextOutput(data)
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var payload = e.postData.contents;
+    if (payload) {
+      props.setProperty('ADMIN_OVERRIDES', payload);
+      return ContentService.createTextOutput(JSON.stringify({ status: 'ok', updated: new Date().toISOString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+
+  function updateCloudSyncUI() {
+    const url = window.AdminStorage.getCloudSyncUrl();
+    if (inputCloudUrl) inputCloudUrl.value = url;
+
+    // Build phone link
+    if (inputPhoneLink) {
+      const origin = window.location.origin;
+      const pathname = window.location.pathname;
+      inputPhoneLink.value = url ? `${origin}${pathname}?sync_url=${encodeURIComponent(url)}` : `${origin}${pathname}`;
+    }
+
+    if (url) {
+      if (cloudDot) cloudDot.style.background = '#22c55e';
+      if (cloudStatusText) cloudStatusText.textContent = 'Cloud Synced';
+      if (btnCloudSync) {
+        btnCloudSync.style.background = '#14532d';
+        btnCloudSync.style.borderColor = '#22c55e';
+        btnCloudSync.style.color = '#86efac';
+      }
+      if (cloudStatusBox) {
+        cloudStatusBox.style.background = 'rgba(34,197,94,0.15)';
+        cloudStatusBox.style.borderColor = '#22c55e';
+        cloudStatusBox.style.color = '#86efac';
+      }
+      if (cloudBannerTitle) cloudBannerTitle.textContent = '🟢 Multi-Device Cloud Sync is ACTIVE';
+      if (cloudBannerDesc) cloudBannerDesc.textContent = 'Every score, winner, live status, and delay you save broadcasts to ALL phones & PCs in real time.';
+    } else {
+      if (cloudDot) cloudDot.style.background = '#eab308';
+      if (cloudStatusText) cloudStatusText.textContent = 'Local Only';
+      if (btnCloudSync) {
+        btnCloudSync.style.background = '#1e3a8a';
+        btnCloudSync.style.borderColor = '#3b82f6';
+        btnCloudSync.style.color = '#93c5fd';
+      }
+      if (cloudStatusBox) {
+        cloudStatusBox.style.background = 'rgba(234,179,8,0.12)';
+        cloudStatusBox.style.borderColor = '#eab308';
+        cloudStatusBox.style.color = '#fef08a';
+      }
+      if (cloudBannerTitle) cloudBannerTitle.textContent = 'Currently in Local-Only Mode';
+      if (cloudBannerDesc) cloudBannerDesc.textContent = 'Your updates are only saved in this browser. Connect your free Google Sheet Web App below so every phone & device sees updates live!';
+    }
+  }
+
+  btnCloudSync?.addEventListener('click', () => {
+    updateCloudSyncUI();
+    cloudModal?.classList.add('active');
+  });
+
+  btnCloseCloud?.addEventListener('click', () => {
+    cloudModal?.classList.remove('active');
+  });
+
+  cloudModal?.addEventListener('click', (e) => {
+    if (e.target === cloudModal) cloudModal.classList.remove('active');
+  });
+
+  btnSaveCloudUrl?.addEventListener('click', async () => {
+    const val = (inputCloudUrl?.value || '').trim();
+    btnSaveCloudUrl.disabled = true;
+    btnSaveCloudUrl.textContent = 'Connecting...';
+
+    await window.AdminStorage.setCloudSyncUrl(val);
+    const pushed = await window.AdminStorage.pushToCloud();
+
+    btnSaveCloudUrl.disabled = false;
+    btnSaveCloudUrl.textContent = 'Connect & Sync';
+    updateCloudSyncUI();
+
+    if (val && pushed) {
+      alert('✓ Connected successfully! Local match data has been broadcast to the cloud for all devices.');
+    } else if (val) {
+      alert('Cloud URL saved. You can now push data using "Push Local Data to Cloud".');
+    } else {
+      alert('Cloud sync URL removed. Admin is now in local mode.');
+    }
+  });
+
+  btnCopyScript?.addEventListener('click', () => {
+    navigator.clipboard.writeText(GOOGLE_APPS_SCRIPT_TEMPLATE).then(() => {
+      btnCopyScript.textContent = '✓ Copied to Clipboard!';
+      setTimeout(() => btnCopyScript.textContent = '📋 Copy Google Apps Script Code', 2500);
+    }).catch(() => {
+      prompt('Copy the Google Apps Script code below:', GOOGLE_APPS_SCRIPT_TEMPLATE);
+    });
+  });
+
+  btnCopyPhoneLink?.addEventListener('click', () => {
+    const link = inputPhoneLink?.value || '';
+    if (!link) return;
+    navigator.clipboard.writeText(link).then(() => {
+      btnCopyPhoneLink.textContent = '✓ Copied!';
+      setTimeout(() => btnCopyPhoneLink.textContent = 'Copy Link', 2500);
+    }).catch(() => {
+      prompt('Copy this link to open on your phone:', link);
+    });
+  });
+
+  btnPushCloud?.addEventListener('click', async () => {
+    btnPushCloud.disabled = true;
+    btnPushCloud.textContent = 'Pushing...';
+    const ok = await window.AdminStorage.pushToCloud();
+    btnPushCloud.disabled = false;
+    btnPushCloud.textContent = '⬆️ Push Local Data to Cloud';
+    if (ok) {
+      alert('✓ Success: All local match scores, winners & statuses pushed to cloud!');
+    } else {
+      alert('⚠️ Push failed. Please verify your Cloud Sync URL or connect Google Apps Script first.');
+    }
+  });
+
+  btnPullCloud?.addEventListener('click', async () => {
+    btnPullCloud.disabled = true;
+    btnPullCloud.textContent = 'Pulling...';
+    const ok = await window.AdminStorage.pullFromCloud();
+    await reloadOverridesAndMedia();
+    renderStats();
+    renderMatches();
+    btnPullCloud.disabled = false;
+    btnPullCloud.textContent = '⬇️ Pull from Cloud';
+    if (ok) {
+      alert('✓ Success: Latest cloud match data pulled to this device!');
+    } else {
+      alert('No new cloud data found or cloud URL not configured.');
+    }
+  });
+
+  btnExportBackup?.addEventListener('click', () => {
+    window.AdminStorage.exportBackupJson();
+  });
+
+  inputImportBackup?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const ok = await window.AdminStorage.importBackupJson(evt.target.result);
+      if (ok) {
+        await reloadOverridesAndMedia();
+        renderStats();
+        renderMatches();
+        updateCloudSyncUI();
+        alert('✓ Backup successfully imported and synced!');
+      } else {
+        alert('Failed to import backup file. Please ensure it is a valid JSON export.');
+      }
+    };
+    reader.readAsText(file);
   });
 
   // Kickoff
+  updateCloudSyncUI();
   checkAuth();
 })();
