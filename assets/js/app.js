@@ -136,9 +136,9 @@
     if (!start) return null;
 
     const list = allMatches || (data && data.schedule) || [];
-    const sportMatches = list.filter(other => 
-      other.sport === m.sport && 
-      other.date === m.date && 
+    const sportMatches = list.filter(other =>
+      other.sport === m.sport &&
+      other.date === m.date &&
       parseInt(other.matchNo) > parseInt(m.matchNo)
     );
 
