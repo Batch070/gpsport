@@ -477,7 +477,7 @@ window.SPORTS_INITIAL_DATA = {
       "matchNo": 12,
       "round": "SEMIFINAL 1",
       "event": "SEMIFINAL 1",
-      "time": "2:00 am",
+      "time": "2:00 pm",
       "venue": "Govt. Polytechnic Hamirpur (HP)",
       "teamA": "WINNER OF MATCH 8",
       "teamB": "WINNER OF MATCH 9",
@@ -489,7 +489,7 @@ window.SPORTS_INITIAL_DATA = {
       "matchNo": 13,
       "round": "SEMIFINAL 2",
       "event": "SEMIFINAL 2",
-      "time": "3:00 am",
+      "time": "3:00 pm",
       "venue": "Govt. Polytechnic Hamirpur (HP)",
       "teamA": "WINNER OF MATCH 10",
       "teamB": "WINNER OF MATCH 11",
@@ -681,7 +681,7 @@ window.SPORTS_INITIAL_DATA = {
       "matchNo": 5,
       "round": "ROUND 16",
       "event": "ROUND 16",
-      "time": "4:15 am",
+      "time": "4:15 pm",
       "venue": "Govt. Polytechnic Hamirpur (HP)",
       "teamA": "Slot #11 (Draw Pending)",
       "teamB": "Slot #12 (Draw Pending)",
@@ -1298,7 +1298,7 @@ window.SPORTS_INITIAL_DATA = {
       "teamA": "WINNER OF MATCH 8",
       "teamB": "WINNER OF MATCH 9",
       "date": "16-11-2026",
-      "time": "2:00 am",
+      "time": "2:00 pm",
       "venue": "Govt. Polytechnic Hamirpur (HP)",
       "winner": "",
       "runnerUp": "",
@@ -1311,7 +1311,7 @@ window.SPORTS_INITIAL_DATA = {
       "teamA": "WINNER OF MATCH 10",
       "teamB": "WINNER OF MATCH 11",
       "date": "16-11-2026",
-      "time": "3:00 am",
+      "time": "3:00 pm",
       "venue": "Govt. Polytechnic Hamirpur (HP)",
       "winner": "",
       "runnerUp": "",
@@ -1519,7 +1519,7 @@ window.SPORTS_INITIAL_DATA = {
       "teamA": "Slot #11 (Draw Pending)",
       "teamB": "Slot #12 (Draw Pending)",
       "date": "15-11-2026",
-      "time": "4:15 am",
+      "time": "4:15 pm",
       "venue": "Govt. Polytechnic Hamirpur (HP)",
       "winner": "",
       "runnerUp": "",
@@ -2558,15 +2558,28 @@ window.SPORTS_INITIAL_DATA = {
 
   function formatTime(val) {
     if (!val) return 'TBA';
-    const str = String(val).trim();
+    let str = String(val).trim();
     if (str.startsWith('Date(')) {
       const parts = str.match(/\d+/g);
       if (parts && parts.length >= 6) {
-        const h = parseInt(parts[3], 10);
+        let h = parseInt(parts[3], 10);
         const m = parseInt(parts[4], 10);
-        const ampm = h >= 12 ? 'pm' : 'am';
-        const h12 = h % 12 || 12;
+        let ampm = h >= 12 ? 'pm' : 'am';
+        let h12 = h % 12 || 12;
+        if (h12 >= 1 && h12 <= 6 && ampm === 'am') {
+          ampm = 'pm';
+        }
         return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+      }
+    }
+    const mMatch = str.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+    if (mMatch) {
+      let h = parseInt(mMatch[1], 10);
+      const min = mMatch[2];
+      let ap = mMatch[3].toLowerCase();
+      if (h >= 1 && h <= 6 && ap === 'am') {
+        ap = 'pm';
+        return `${h}:${min} ${ap}`;
       }
     }
     return str;

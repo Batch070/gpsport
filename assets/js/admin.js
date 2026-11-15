@@ -132,11 +132,109 @@
     };
   }
 
+  function parseMatchDateTime(dateStr, timeStr) {
+    if (!dateStr || !timeStr || timeStr === 'TBA') return null;
+    const cleanDate = String(dateStr).trim();
+    const dateParts = cleanDate.split('-').map(Number);
+    if (dateParts.length !== 3) return null;
+    const [day, month, year] = dateParts;
+
+    let str = String(timeStr).trim().toLowerCase();
+    if (str.includes('noon')) str = '12:00 pm';
+
+    let h = 0, min = 0, ampm = 'am';
+    const mColon = str.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/);
+    const mSimple = str.match(/(\d{1,2})\s*(am|pm)/);
+
+    if (mColon) {
+      h = parseInt(mColon[1], 10);
+      min = parseInt(mColon[2], 10);
+      ampm = mColon[3] || (h >= 12 ? 'pm' : 'am');
+    } else if (mSimple) {
+      h = parseInt(mSimple[1], 10);
+      min = 0;
+      ampm = mSimple[2];
+    } else {
+      return null;
+    }
+
+    if (h >= 1 && h <= 6 && ampm === 'am') {
+      h += 12;
+      ampm = 'pm';
+    } else {
+      if (ampm === 'pm' && h < 12) h += 12;
+      if (ampm === 'am' && h === 12) h = 0;
+    }
+
+    return new Date(year, month - 1, day, h, min, 0);
+  }
+
+  function getMatchEndTime(m, allList) {
+    const start = parseMatchDateTime(m.date, m.time);
+    if (!start) return null;
+
+    const list = allList || allMatches || [];
+    const sportMatches = list.filter(other => 
+      other.sport === m.sport && 
+      other.date === m.date && 
+      parseInt(other.matchNo) > parseInt(m.matchNo)
+    );
+
+    for (const nextM of sportMatches) {
+      const nextStart = parseMatchDateTime(nextM.date, nextM.time);
+      if (nextStart && nextStart.getTime() > start.getTime()) {
+        const diffMs = nextStart.getTime() - start.getTime();
+        if (diffMs <= 3.5 * 60 * 60 * 1000) {
+          return nextStart;
+        }
+        break;
+      }
+    }
+
+    const s = String(m.sport || '').toLowerCase();
+    let defaultMinutes = 75;
+    if (s.includes('basket') || s.includes('kabad')) defaultMinutes = 90;
+    else if (s.includes('volley')) defaultMinutes = 75;
+    else defaultMinutes = 60;
+
+    return new Date(start.getTime() + defaultMinutes * 60 * 1000);
+  }
+
+  function getMatchLiveStatus(x, now = new Date(), allList = null) {
+    if (x.adminStatus === 'LIVE') return 'LIVE';
+    if (x.adminStatus === 'DELAYED') return 'DELAYED';
+    if (x.adminStatus === 'COMPLETED') return 'COMPLETED';
+
+    if (x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match' && String(x.winner).trim() !== '') {
+      return 'COMPLETED';
+    }
+    const start = parseMatchDateTime(x.date, x.time);
+    if (!start) return 'UPCOMING';
+
+    const end = getMatchEndTime(x, allList || allMatches);
+    const nowMs = now.getTime();
+    const startMs = start.getTime();
+    const endMs = end ? end.getTime() : (startMs + 75 * 60 * 1000);
+
+    if (nowMs >= startMs && nowMs < endMs) {
+      return 'LIVE';
+    }
+    if (nowMs >= (startMs - 20 * 60 * 1000) && nowMs < startMs) {
+      return 'STARTING_SOON';
+    }
+    if (nowMs >= endMs) {
+      return 'AWAITING_RESULT';
+    }
+    return 'UPCOMING';
+  }
+
   function renderStats() {
     let live = 0, delayed = 0, completed = 0;
+    const now = new Date();
     allMatches.forEach(raw => {
       const m = getEffectiveMatch(raw);
-      if (m.adminStatus === 'LIVE') live++;
+      const isAutoLive = getMatchLiveStatus(m, now, allMatches) === 'LIVE';
+      if (m.adminStatus === 'LIVE' || (!m.adminStatus && isAutoLive)) live++;
       else if (m.adminStatus === 'DELAYED') delayed++;
       else if (m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && m.winner.trim() !== '') completed++;
     });
@@ -150,18 +248,20 @@
     if (!matchesGrid) return;
     const q = (searchInput?.value || '').toLowerCase().trim();
     const stFilter = statusFilter?.value || 'all';
+    const now = new Date();
 
     const sportMatches = allMatches.filter(m => m.sport.toLowerCase() === currentSport.toLowerCase());
 
     const filtered = sportMatches.filter(raw => {
       const m = getEffectiveMatch(raw);
+      const isAutoLive = getMatchLiveStatus(m, now, allMatches) === 'LIVE';
       const str = `${m.matchNo} ${m.round} ${m.teamA} ${m.teamB} ${m.winner || ''}`.toLowerCase();
       if (q && !str.includes(q)) return false;
 
-      if (stFilter === 'live' && m.adminStatus !== 'LIVE') return false;
+      if (stFilter === 'live' && m.adminStatus !== 'LIVE' && !isAutoLive) return false;
       if (stFilter === 'delayed' && m.adminStatus !== 'DELAYED') return false;
       if (stFilter === 'completed' && (!m.winner || m.winner === '—')) return false;
-      if (stFilter === 'upcoming' && (m.adminStatus === 'LIVE' || m.adminStatus === 'DELAYED' || m.winner)) return false;
+      if (stFilter === 'upcoming' && (m.adminStatus === 'LIVE' || isAutoLive || m.adminStatus === 'DELAYED' || m.winner)) return false;
 
       return true;
     });
@@ -174,11 +274,15 @@
     matchesGrid.innerHTML = filtered.map(raw => {
       const m = getEffectiveMatch(raw);
       const hasWinner = Boolean(m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== '');
+      const isAutoLive = getMatchLiveStatus(m, now, allMatches) === 'LIVE';
       
       let statusClass = '';
       let statusBadge = '<span class="admin-stat-pill">⏰ Scheduled</span>';
 
       if (m.adminStatus === 'LIVE') {
+        statusClass = 'is-live-override';
+        statusBadge = '<span class="admin-stat-pill live">🔴 LIVE (Admin Force)</span>';
+      } else if (isAutoLive && !m.adminStatus && !hasWinner) {
         statusClass = 'is-live-override';
         statusBadge = '<span class="admin-stat-pill live">🔴 LIVE ON COURT</span>';
       } else if (m.adminStatus === 'DELAYED') {

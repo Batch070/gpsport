@@ -87,8 +87,14 @@
       return null;
     }
 
-    if (ampm === 'pm' && h < 12) h += 12;
-    if (ampm === 'am' && h === 12) h = 0;
+    // Auto-correct PM typos for afternoon matches (e.g. 2:00 am, 3:00 am, 4:15 am)
+    if (h >= 1 && h <= 6 && ampm === 'am') {
+      h += 12;
+      ampm = 'pm';
+    } else {
+      if (ampm === 'pm' && h < 12) h += 12;
+      if (ampm === 'am' && h === 12) h = 0;
+    }
 
     return new Date(year, month - 1, day, h, min, 0);
   }
@@ -123,8 +129,42 @@
     };
   }
 
+  // Dynamic court match window: runs until the next match of the same sport begins,
+  // or default duration (Basketball & Kabaddi: 90 mins, Volleyball: 75 mins, Badminton & TT: 60 mins).
+  function getMatchEndTime(m, allMatches) {
+    const start = parseMatchDateTime(m.date, m.time);
+    if (!start) return null;
+
+    const list = allMatches || (data && data.schedule) || [];
+    const sportMatches = list.filter(other => 
+      other.sport === m.sport && 
+      other.date === m.date && 
+      parseInt(other.matchNo) > parseInt(m.matchNo)
+    );
+
+    for (const nextM of sportMatches) {
+      const nextStart = parseMatchDateTime(nextM.date, nextM.time);
+      if (nextStart && nextStart.getTime() > start.getTime()) {
+        const diffMs = nextStart.getTime() - start.getTime();
+        // If next match is scheduled within 3.5 hours, the court is active for this match until the next match begins
+        if (diffMs <= 3.5 * 60 * 60 * 1000) {
+          return nextStart;
+        }
+        break;
+      }
+    }
+
+    const s = String(m.sport || '').toLowerCase();
+    let defaultMinutes = 75;
+    if (s.includes('basket') || s.includes('kabad')) defaultMinutes = 90;
+    else if (s.includes('volley')) defaultMinutes = 75;
+    else defaultMinutes = 60;
+
+    return new Date(start.getTime() + defaultMinutes * 60 * 1000);
+  }
+
   // Live Match Engine: Calculates live status dynamically based on current date & time or admin override
-  function getMatchLiveStatus(x, now = new Date()) {
+  function getMatchLiveStatus(x, now = new Date(), allMatches = null) {
     if (x.adminStatus === 'LIVE') return 'LIVE';
     if (x.adminStatus === 'DELAYED') return 'DELAYED';
     if (x.adminStatus === 'COMPLETED') return 'COMPLETED';
@@ -136,11 +176,10 @@
     const start = parseMatchDateTime(x.date, x.time);
     if (!start) return 'UPCOMING';
 
-    // Matches typically span ~60 minutes on court
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const end = getMatchEndTime(x, allMatches || (data && data.schedule) || []);
     const nowMs = now.getTime();
     const startMs = start.getTime();
-    const endMs = end.getTime();
+    const endMs = end ? end.getTime() : (startMs + 75 * 60 * 1000);
 
     if (nowMs >= startMs && nowMs < endMs) {
       return 'LIVE';
@@ -382,12 +421,12 @@
         ` : ''}
 
         ${hasWinner
-          ? `<div class="match-winner-badge">
+        ? `<div class="match-winner-badge">
               <span>🏆 Winner: <strong class="winner-name">${esc(x.winner)}</strong></span>
               ${x.runnerUp && x.runnerUp !== '—' ? `<span class="runner-up-label">Runner-Up: ${esc(x.runnerUp)}</span>` : ''}
             </div>`
-          : (type === 'results' ? `<div class="match-pending-badge">Status: Match scheduled · Awaiting result</div>` : '')
-        }
+        : (type === 'results' ? `<div class="match-pending-badge">Status: Match scheduled · Awaiting result</div>` : '')
+      }
 
         <div class="card-bottom-bar">
           ${hasWinner
@@ -731,7 +770,7 @@
                           <button type="button" class="match-media-btn" style="padding:2px 7px;font-size:9px" onclick="window.viewMatchMedia('${esc(m.sport)}', ${m.matchNo})">📷 ${mediaInfo.count}</button>
                         ` : '';
 
-                        return `
+              return `
                           <tr>
                             <td>
                               <span class="match-pill-id">M#${esc(m.matchNo)}</span>
@@ -750,10 +789,10 @@
                               </span>
                             </td>
                             <td>
-                              ${hasWin 
-                                ? `<span class="table-winner-cell">🏆 <strong>${esc(m.winner)}</strong></span>` 
-                                : `<span style="color:#94a3b8;font-size:12px">Awaiting Match</span>`
-                              }
+                              ${hasWin
+                  ? `<span class="table-winner-cell">🏆 <strong>${esc(m.winner)}</strong></span>`
+                  : `<span style="color:#94a3b8;font-size:12px">Awaiting Match</span>`
+                }
                               ${(m.scoreTeam1 || m.scoreTeam2 || m.scoreSummary) ? `
                                 <div style="font-size:11px;color:#854d0e;font-weight:700;margin-top:2px;">
                                   ⚡ Score: ${esc(m.scoreTeam1 || 0)} - ${esc(m.scoreTeam2 || 0)}
@@ -761,10 +800,10 @@
                               ` : ''}
                             </td>
                             <td>
-                              ${m.runnerUp && m.runnerUp !== '—' 
-                                ? `<span style="color:#475569;font-weight:600">${esc(m.runnerUp)}</span>` 
-                                : `<span style="color:#cbd5e1">—</span>`
-                              }
+                              ${m.runnerUp && m.runnerUp !== '—'
+                  ? `<span style="color:#475569;font-weight:600">${esc(m.runnerUp)}</span>`
+                  : `<span style="color:#cbd5e1">—</span>`
+                }
                             </td>
                             <td>
                               <span class="table-status-pill ${isCompleted ? 'completed' : 'pending'}">
@@ -773,7 +812,7 @@
                             </td>
                           </tr>
                         `;
-                      }).join('')}
+            }).join('')}
                     </tbody>
                   </table>
                 </div>
