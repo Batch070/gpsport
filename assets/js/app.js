@@ -93,9 +93,43 @@
     return new Date(year, month - 1, day, h, min, 0);
   }
 
-  // Live Match Engine: Calculates live status dynamically based on current date & time
+  function getAdminCache() {
+    try {
+      return JSON.parse(localStorage.getItem('SPORTS_ADMIN_CACHE') || '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  function getMediaCache() {
+    try {
+      return JSON.parse(localStorage.getItem('SPORTS_MEDIA_CACHE') || '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  function applyAdminOverride(rawMatch) {
+    if (!rawMatch) return rawMatch;
+    const overrides = getAdminCache();
+    const id = `${rawMatch.sport}_${rawMatch.matchNo}`;
+    const override = overrides[id];
+    if (!override) return rawMatch;
+    return {
+      ...rawMatch,
+      ...override,
+      winner: (override.winner && override.winner.trim() !== '') ? override.winner : rawMatch.winner,
+      runnerUp: (override.runnerUp && override.runnerUp.trim() !== '') ? override.runnerUp : rawMatch.runnerUp
+    };
+  }
+
+  // Live Match Engine: Calculates live status dynamically based on current date & time or admin override
   function getMatchLiveStatus(x, now = new Date()) {
-    // If winner is updated in the Google Sheet, match is ALWAYS completed - never live!
+    if (x.adminStatus === 'LIVE') return 'LIVE';
+    if (x.adminStatus === 'DELAYED') return 'DELAYED';
+    if (x.adminStatus === 'COMPLETED') return 'COMPLETED';
+
+    // If winner is updated in the Google Sheet or override, match is ALWAYS completed - never live!
     if (x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match' && String(x.winner).trim() !== '') {
       return 'COMPLETED';
     }
@@ -222,27 +256,32 @@
     return { teamA, teamB };
   }
 
-  function formatTablePairing(x) {
+  function formatTablePairing(rawMatch) {
+    const x = applyAdminOverride(rawMatch);
     const hasWinner = Boolean(x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match' && String(x.winner).trim() !== '');
+    const hasScore = Boolean(x.scoreTeam1 || x.scoreTeam2 || x.scoreSummary);
+    const scoreText = hasScore ? ` <span style="display:inline-block;padding:1px 6px;background:#fef08a;border:1px solid #eab308;border-radius:4px;color:#854d0e;font-size:11px;font-weight:800;margin-left:6px;">⚡ ${esc(x.scoreTeam1 || 0)}-${esc(x.scoreTeam2 || 0)}</span>` : '';
+
     if (!hasWinner) {
-      return `${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)}`;
+      return `${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)}${scoreText}`;
     }
     const isTeamAWinner = isWinnerTeam(x.teamA, x.winner);
     const isTeamBWinner = isWinnerTeam(x.teamB, x.winner);
 
     if (isTeamAWinner) {
-      return `<strong style="color:#15803d">👑 ${esc(x.teamA)} (W)</strong> <span class="pairing-versus-sep">def.</span> <span style="opacity:0.65">${esc(x.teamB)}</span>`;
+      return `<strong style="color:#15803d">👑 ${esc(x.teamA)} (W)</strong> <span class="pairing-versus-sep">def.</span> <span style="opacity:0.65">${esc(x.teamB)}</span>${scoreText}`;
     }
     if (isTeamBWinner) {
-      return `<span style="opacity:0.65">${esc(x.teamA)}</span> <span class="pairing-versus-sep">lost to</span> <strong style="color:#15803d">👑 ${esc(x.teamB)} (W)</strong>`;
+      return `<span style="opacity:0.65">${esc(x.teamA)}</span> <span class="pairing-versus-sep">lost to</span> <strong style="color:#15803d">👑 ${esc(x.teamB)} (W)</strong>${scoreText}`;
     }
-    return `${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)} <span style="margin-left:6px;color:#15803d;font-weight:700">🏆 ${esc(x.winner)}</span>`;
+    return `${esc(x.teamA)} <span class="pairing-versus-sep">VS</span> ${esc(x.teamB)} <span style="margin-left:6px;color:#15803d;font-weight:700">🏆 ${esc(x.winner)}</span>${scoreText}`;
   }
 
   function renderCard(rawMatch, type = 'schedule') {
-    const allRefMatches = (data.results || []).concat(data.schedule || []).concat(data.fixtures || []);
-    const { teamA, teamB } = resolveCardTeamNames(rawMatch, allRefMatches);
-    const x = { ...rawMatch, teamA, teamB };
+    const item = applyAdminOverride(rawMatch);
+    const allRefMatches = (data.results || []).concat(data.schedule || []).concat(data.fixtures || []).map(applyAdminOverride);
+    const { teamA, teamB } = resolveCardTeamNames(item, allRefMatches);
+    const x = { ...item, teamA, teamB };
 
     const sportClass = getSportBadgeClass(x.sport);
     const roundBadge = getRoundBadgeHtml(x.round || x.event);
@@ -271,6 +310,8 @@
     } else if (liveStatus === 'LIVE') {
       cardLiveClass = 'is-live';
       statusPillHtml = `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE NOW</span>`;
+    } else if (liveStatus === 'DELAYED') {
+      statusPillHtml = `<span class="match-delayed-badge">⏱️ DELAYED</span>`;
     } else if (liveStatus === 'STARTING_SOON') {
       statusPillHtml = `<span class="starting-soon-badge">⏱️ STARTING SOON</span>`;
     }
@@ -280,6 +321,25 @@
 
     const teamALabel = isTeamAWinner ? '🏆 WINNER' : (isTeamBWinner ? 'RUNNER UP' : 'TEAM 01');
     const teamBLabel = isTeamBWinner ? '🏆 WINNER' : (isTeamAWinner ? 'RUNNER UP' : 'TEAM 02');
+
+    // Score pill
+    const hasScore = Boolean(x.scoreTeam1 || x.scoreTeam2 || x.scoreSummary);
+    const scorePillHtml = hasScore ? `
+      <div class="match-live-score-pill">
+        <span>⚡ Live Score:</span>
+        <strong>${esc(x.scoreTeam1 || 0)} - ${esc(x.scoreTeam2 || 0)}</strong>
+        ${x.scoreSummary ? `<small>(${esc(x.scoreSummary)})</small>` : ''}
+      </div>
+    ` : '';
+
+    // Media button
+    const mediaCache = getMediaCache();
+    const mediaInfo = mediaCache[`${x.sport}_${x.matchNo}`];
+    const mediaBtnHtml = (mediaInfo && mediaInfo.count > 0) ? `
+      <button type="button" class="match-media-btn" onclick="window.viewMatchMedia('${esc(x.sport)}', ${x.matchNo})">
+        📷 Photos/Videos (${mediaInfo.count})
+      </button>
+    ` : '';
 
     return `
       <article class="match-interactive-card ${cardLiveClass} ${hasWinner ? 'is-completed-card' : ''}">
@@ -313,6 +373,14 @@
           </div>
         </div>
 
+        ${scorePillHtml}
+
+        ${(x.delayNote && liveStatus === 'DELAYED') ? `
+          <div style="margin-top:8px;padding:6px 10px;background:#fef08a;border:1px solid #eab308;border-radius:6px;color:#854d0e;font-size:11px;font-weight:700;">
+            ⏱️ Notice: ${esc(x.delayNote)}
+          </div>
+        ` : ''}
+
         ${hasWinner
           ? `<div class="match-winner-badge">
               <span>🏆 Winner: <strong class="winner-name">${esc(x.winner)}</strong></span>
@@ -326,15 +394,21 @@
             ? `<span class="completed-result-pill" style="font-weight:800"><span class="check-icon">🏆</span> Winner: <strong>${esc(x.winner)}</strong></span>`
             : (liveStatus === 'LIVE'
               ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE ON COURT · ${esc(x.time || 'NOW')}</span>`
-              : (liveStatus === 'STARTING_SOON'
-                ? `<span class="starting-soon-badge">⏱️ Warmup · Starts at ${esc(x.time)}</span>`
-                : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time || 'TBA')}</span>`
+              : (liveStatus === 'DELAYED'
+                ? `<span class="match-delayed-badge">⏱️ DELAYED · ${esc(x.delayNote || 'Notice issued')}</span>`
+                : (liveStatus === 'STARTING_SOON'
+                  ? `<span class="starting-soon-badge">⏱️ Warmup · Starts at ${esc(x.time)}</span>`
+                  : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time || 'TBA')}</span>`
+                )
               )
             )
           }
-          <span class="card-venue-info">
-            📍 ${esc(x.venue || 'Govt. Polytechnic Hamirpur')}
-          </span>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto;">
+            ${mediaBtnHtml}
+            <span class="card-venue-info">
+              📍 ${esc(x.venue || 'Govt. Polytechnic Hamirpur')}
+            </span>
+          </div>
         </div>
       </article>
     `;
@@ -349,11 +423,12 @@
     if (!bannerSec || !bannerGrid) return;
 
     const now = new Date();
-    const liveMatches = (allMatches || []).filter(m => {
-      // If winner is updated in the Google Sheet, match is completed - NOT live!
+    const liveMatches = (allMatches || []).map(applyAdminOverride).filter(m => {
+      // If winner is updated in the Google Sheet or override, match is completed - NOT live!
       if (m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== '') {
         return false;
       }
+      if (m.adminStatus === 'DELAYED' || m.adminStatus === 'COMPLETED') return false;
       const st = getMatchLiveStatus(m, now);
       return st === 'LIVE' || st === 'STARTING_SOON';
     });
@@ -376,6 +451,11 @@
             <div class="live-match-teams">
               ${esc(m.teamA)} <span style="color:#ef4444;font-size:12px;margin:0 4px">VS</span> ${esc(m.teamB)}
             </div>
+            ${(m.scoreTeam1 || m.scoreTeam2) ? `
+              <div style="font-size:11px;font-weight:800;color:#fde047;margin-top:2px;">
+                ⚡ Score: ${esc(m.scoreTeam1)} - ${esc(m.scoreTeam2)} ${m.scoreSummary ? `(${esc(m.scoreSummary)})` : ''}
+              </div>
+            ` : ''}
             <div class="live-match-venue">
               ⏰ ${esc(m.time)} · 📍 ${esc(m.venue || 'Hamirpur')}
             </div>
@@ -425,10 +505,11 @@
 
       if (liveOverviewGrid && data.schedule) {
         const now = new Date();
-        const liveMatches = (data.schedule || []).filter(m => getMatchLiveStatus(m, now) === 'LIVE');
-        const soonMatches = (data.schedule || []).filter(m => getMatchLiveStatus(m, now) === 'STARTING_SOON');
-        const upcomingMatches = (data.schedule || []).filter(m => getMatchLiveStatus(m, now) === 'UPCOMING');
-        const completedWithWinner = (data.schedule || []).filter(m => Boolean(m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== ''));
+        const effectiveSchedule = (data.schedule || []).map(applyAdminOverride);
+        const liveMatches = effectiveSchedule.filter(m => getMatchLiveStatus(m, now) === 'LIVE');
+        const soonMatches = effectiveSchedule.filter(m => getMatchLiveStatus(m, now) === 'STARTING_SOON');
+        const upcomingMatches = effectiveSchedule.filter(m => getMatchLiveStatus(m, now) === 'UPCOMING');
+        const completedWithWinner = effectiveSchedule.filter(m => Boolean(m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== ''));
 
         if (liveMatches.length > 0) {
           if (liveOverviewSection) liveOverviewSection.style.display = 'block';
@@ -467,7 +548,7 @@
         const now = new Date();
 
         const disciplineHighlights = ALL_DISCIPLINES.map(sport => {
-          const sportMatches = data.schedule.filter(m => 
+          const sportMatches = (data.schedule || []).map(applyAdminOverride).filter(m => 
             m.sport.toLowerCase() === sport.toLowerCase() || 
             m.sport.toLowerCase().includes(sport.toLowerCase().replace(' ', ''))
           );
@@ -508,23 +589,34 @@
       // Render Table Rows
       const tbody = document.querySelector('#schedule-body');
       if (tbody) {
-        tbody.innerHTML = rows.map(x => {
+        tbody.innerHTML = rows.map(raw => {
+          const x = applyAdminOverride(raw);
           const hasWin = Boolean(x.winner && x.winner !== '—' && x.winner !== 'Awaiting Match' && String(x.winner).trim() !== '');
           const liveStatus = hasWin ? 'COMPLETED' : getMatchLiveStatus(x);
           const isLiveRow = liveStatus === 'LIVE' ? 'table-row-live' : '';
+          const mediaCache = getMediaCache();
+          const mediaInfo = mediaCache[`${x.sport}_${x.matchNo}`];
+          const mediaBtn = (mediaInfo && mediaInfo.count > 0) ? `
+            <button type="button" class="match-media-btn" style="padding:2px 7px;font-size:9px" onclick="window.viewMatchMedia('${esc(x.sport)}', ${x.matchNo})">📷 ${mediaInfo.count}</button>
+          ` : '';
+
           return `
             <tr class="${isLiveRow}">
               <td><span class="date-highlight-pill">📅 ${esc(x.date)}</span></td>
               <td><span class="sport-badge ${getSportBadgeClass(x.sport)}">${esc(x.sport)}</span></td>
               <td>
                 <div class="table-team-pairing">
-                  <div>
+                  <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                     <span class="match-pill-id" style="font-size:9px;padding:2px 5px">M#${esc(x.matchNo)}</span>
                     ${getRoundBadgeHtml(x.round || x.event)}
                     ${hasWin 
                       ? `<span class="round-badge card-winner-pill" style="font-size:9px;padding:2px 6px">🏆 Winner: ${esc(x.winner)}</span>` 
-                      : (liveStatus === 'LIVE' ? `<span class="live-pulse-badge" style="font-size:9px;padding:2px 6px"><span class="pulse-dot"></span> LIVE</span>` : '')
+                      : (liveStatus === 'LIVE' 
+                        ? `<span class="live-pulse-badge" style="font-size:9px;padding:2px 6px"><span class="pulse-dot"></span> LIVE</span>` 
+                        : (liveStatus === 'DELAYED' ? `<span class="match-delayed-badge" style="font-size:9px;padding:2px 6px">⏱️ DELAYED</span>` : '')
+                      )
                     }
+                    ${mediaBtn}
                   </div>
                   <div class="pairing-names">
                     ${formatTablePairing(x)}
@@ -536,7 +628,10 @@
                   ? `<span class="completed-result-pill" style="font-size:10px;font-weight:800"><span class="check-icon">🏆</span> Winner: <strong>${esc(x.winner)}</strong></span>`
                   : (liveStatus === 'LIVE'
                     ? `<span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE NOW (${esc(x.time)})</span>`
-                    : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time)}</span>`
+                    : (liveStatus === 'DELAYED'
+                      ? `<span class="match-delayed-badge" style="font-size:10px;">⏱️ Delayed (${esc(x.delayNote || x.time)})</span>`
+                      : `<span class="time-highlight-pill"><span class="time-icon">⏰</span> ${esc(x.time)}</span>`
+                    )
                   )
                 }
               </td>
@@ -624,15 +719,24 @@
                       </tr>
                     </thead>
                     <tbody>
-                      ${sportMatches.map(m => {
+                      ${sportMatches.map(raw => {
+                        const m = applyAdminOverride(raw);
                         const isWinner1 = isWinnerTeam(m.teamA, m.winner);
                         const isWinner2 = isWinnerTeam(m.teamB, m.winner);
                         const hasWin = Boolean(m.winner && m.winner !== '—' && m.winner !== 'Awaiting Match' && String(m.winner).trim() !== '');
-                        const isCompleted = m.status === 'Completed' || hasWin;
+                        const isCompleted = m.status === 'Completed' || hasWin || m.adminStatus === 'COMPLETED';
+                        const mediaCache = getMediaCache();
+                        const mediaInfo = mediaCache[`${m.sport}_${m.matchNo}`];
+                        const mediaBtn = (mediaInfo && mediaInfo.count > 0) ? `
+                          <button type="button" class="match-media-btn" style="padding:2px 7px;font-size:9px" onclick="window.viewMatchMedia('${esc(m.sport)}', ${m.matchNo})">📷 ${mediaInfo.count}</button>
+                        ` : '';
 
                         return `
                           <tr>
-                            <td><span class="match-pill-id">M#${esc(m.matchNo)}</span></td>
+                            <td>
+                              <span class="match-pill-id">M#${esc(m.matchNo)}</span>
+                              ${mediaBtn}
+                            </td>
                             <td>${getRoundBadgeHtml(m.round)}</td>
                             <td><span class="date-highlight-pill">📅 ${esc(m.date)}</span></td>
                             <td>
@@ -650,6 +754,11 @@
                                 ? `<span class="table-winner-cell">🏆 <strong>${esc(m.winner)}</strong></span>` 
                                 : `<span style="color:#94a3b8;font-size:12px">Awaiting Match</span>`
                               }
+                              ${(m.scoreTeam1 || m.scoreTeam2 || m.scoreSummary) ? `
+                                <div style="font-size:11px;color:#854d0e;font-weight:700;margin-top:2px;">
+                                  ⚡ Score: ${esc(m.scoreTeam1 || 0)} - ${esc(m.scoreTeam2 || 0)}
+                                </div>
+                              ` : ''}
                             </td>
                             <td>
                               ${m.runnerUp && m.runnerUp !== '—' 
@@ -681,6 +790,62 @@
     }
   }
 
+  // Public Match Media Lightbox Viewer
+  window.viewMatchMedia = async function(sport, matchNo) {
+    let modal = document.querySelector('#public-media-lightbox');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'public-media-lightbox';
+      modal.className = 'public-media-modal';
+      document.body.appendChild(modal);
+    }
+
+    let mediaList = [];
+    if (window.AdminStorage && typeof window.AdminStorage.getMatchMedia === 'function') {
+      try {
+        mediaList = await window.AdminStorage.getMatchMedia(sport, matchNo);
+      } catch {}
+    }
+
+    modal.innerHTML = `
+      <div class="public-media-window">
+        <div class="public-media-head">
+          <div>
+            <h3>${esc(sport)} — Match #${esc(matchNo)} Media</h3>
+            <small style="color:var(--gold-light);font-weight:600;">${mediaList.length} photo(s) & video(s) uploaded</small>
+          </div>
+          <button type="button" class="public-media-close" aria-label="Close" onclick="document.querySelector('#public-media-lightbox').classList.remove('active')">&times;</button>
+        </div>
+        <div class="public-media-grid">
+          ${mediaList.length ? mediaList.map(m => `
+            <div class="public-media-card">
+              ${m.type === 'photo' 
+                ? `<img src="${m.src}" alt="${esc(m.name || 'Photo')}" loading="lazy" style="width:100%;height:180px;object-fit:cover;cursor:pointer;" onclick="window.open('${m.src}', '_blank')">` 
+                : `<video src="${m.src}" controls playsinline style="width:100%;height:180px;background:#000;object-fit:cover;"></video>`
+              }
+              <div style="padding:8px 12px;font-size:11px;color:#94a3b8;display:flex;justify-content:space-between;align-items:center;">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${esc(m.name || (m.type === 'photo' ? 'Photo' : 'Video'))}</span>
+                <span>${m.type === 'photo' ? '📷 Photo' : '🎥 Video'}</span>
+              </div>
+            </div>
+          `).join('') : '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#94a3b8;">No photos or videos attached to this match yet.</div>'}
+        </div>
+      </div>
+    `;
+    modal.classList.add('active');
+
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.classList.remove('active');
+    };
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const modal = document.querySelector('#public-media-lightbox');
+      if (modal) modal.classList.remove('active');
+    }
+  });
+
   async function refresh(isManual = false) {
     if (refreshBtn) {
       refreshBtn.classList.add('spinning');
@@ -709,6 +874,12 @@
 
   // Then fetch fresh data immediately
   refresh();
+
+  // Background IndexedDB cache sync
+  if (window.AdminStorage) {
+    window.AdminStorage.getAllOverrides().then(() => render());
+    window.AdminStorage.getMediaSummary().then(() => render());
+  }
 
   // Background auto-refresh polling (every 30 seconds)
   if (window.SPORTS_CONFIG?.REFRESH_INTERVAL_MS) {
