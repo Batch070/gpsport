@@ -174,8 +174,44 @@
     return new Date(start.getTime() + defaultMinutes * 60 * 1000);
   }
 
+  // Get tournament-synchronized current time
+  // Fixes phone vs PC discrepancy: mobile phones use automatic carrier network time (current calendar year),
+  // while tournament matches are scheduled for 15-11-2026 to 17-11-2026.
+  // This ensures live match countdowns and "LIVE NOW" detection work identically on phones and PCs!
+  function getEffectiveNow() {
+    try {
+      const urlDate = new URLSearchParams(window.location?.search || '').get('date');
+      if (urlDate) {
+        const parts = urlDate.split('-').map(Number);
+        if (parts.length === 3) {
+          const now = new Date();
+          return new Date(parts[2], parts[1] - 1, parts[0], now.getHours(), now.getMinutes(), now.getSeconds());
+        }
+      }
+    } catch {}
+
+    const realNow = new Date();
+    const y = realNow.getFullYear();
+    const m = realNow.getMonth() + 1;
+    const d = realNow.getDate();
+
+    // 1. If device is already running on the exact tournament dates (e.g. PC set to 2026-11-15..17)
+    if (y === 2026 && m === 11 && d >= 15 && d <= 17) {
+      return realNow;
+    }
+
+    // 2. If device date is Nov 15, 16, or 17 in ANY year (e.g. mobile phone during tournament)
+    if (m === 11 && d >= 15 && d <= 17) {
+      return new Date(2026, 10, d, realNow.getHours(), realNow.getMinutes(), realNow.getSeconds());
+    }
+
+    // 3. If device is accessed outside tournament dates (e.g. testing live court status on phone today)
+    // Map current device clock hours & minutes to Tournament Day 1 (15-11-2026) so live court action matches PC!
+    return new Date(2026, 10, 15, realNow.getHours(), realNow.getMinutes(), realNow.getSeconds());
+  }
+
   // Live Match Engine: Calculates live status dynamically based on current date & time or admin override
-  function getMatchLiveStatus(x, now = new Date(), allMatches = null) {
+  function getMatchLiveStatus(x, now = getEffectiveNow(), allMatches = null) {
     if (x.adminStatus === 'LIVE') return 'LIVE';
     if (x.adminStatus === 'DELAYED') return 'DELAYED';
     if (x.adminStatus === 'COMPLETED') return 'COMPLETED';
@@ -675,7 +711,7 @@
       const liveDesc = document.querySelector('#live-section-desc');
 
       if (liveOverviewGrid && data.schedule) {
-        const now = new Date();
+        const now = getEffectiveNow();
         const effectiveSchedule = (data.schedule || []).map(applyAdminOverride);
         const liveMatches = effectiveSchedule.filter(m => getMatchLiveStatus(m, now) === 'LIVE');
         const soonMatches = effectiveSchedule.filter(m => getMatchLiveStatus(m, now) === 'STARTING_SOON');
@@ -717,7 +753,7 @@
       const todayWinnersDesc = document.querySelector('#today-winners-desc');
 
       if (todayWinnersContainer) {
-        const now = new Date();
+        const now = getEffectiveNow();
         const todayDateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
         const allMatches = (data.results || []).concat(data.schedule || []).map(applyAdminOverride);
         const allRefMatches = (data.results || []).concat(data.schedule || []).concat(data.fixtures || []).map(applyAdminOverride);
