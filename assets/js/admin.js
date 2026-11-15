@@ -202,6 +202,16 @@
     return new Date(start.getTime() + defaultMinutes * 60 * 1000);
   }
 
+  function getSportIcon(sport) {
+    const s = String(sport || '').toLowerCase();
+    if (s.includes('badminton')) return '🏸';
+    if (s.includes('table') || s === 'tt') return '🏓';
+    if (s.includes('volley')) return '🏐';
+    if (s.includes('basket')) return '🏀';
+    if (s.includes('kabaddi')) return '🤼';
+    return '🏅';
+  }
+
   function getMatchLiveStatus(x, now = new Date(), allList = null) {
     if (x.adminStatus === 'LIVE') return 'LIVE';
     if (x.adminStatus === 'DELAYED') return 'DELAYED';
@@ -300,7 +310,8 @@
           <div class="admin-card-head">
             <div>
               <span class="match-pill-id">M#${m.matchNo}</span>
-              <strong style="color:var(--gold-light);margin-left:6px;font-size:12px;">${m.round || m.event}</strong>
+              <span style="display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:var(--gold-light);">${getSportIcon(m.sport)} ${m.sport}</span>
+              <strong style="color:#cbd5e1;margin-left:6px;font-size:12px;">${m.round || m.event}</strong>
             </div>
             ${statusBadge}
           </div>
@@ -371,7 +382,7 @@
     activeMediaList = (await window.AdminStorage.getMatchMedia(sport, matchNo)) || [];
 
     modalMatchId.textContent = `M#${activeMatch.matchNo}`;
-    modalSportTitle.textContent = `${activeMatch.sport} — ${activeMatch.round}`;
+    modalSportTitle.textContent = `${getSportIcon(activeMatch.sport)} ${activeMatch.sport} — ${activeMatch.round}`;
 
     lblTeam1.textContent = activeMatch.teamA;
     lblTeam2.textContent = activeMatch.teamB;

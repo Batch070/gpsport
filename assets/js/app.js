@@ -45,6 +45,17 @@
     return '';
   }
 
+  // Sport icon helper
+  function getSportIcon(sport) {
+    const s = String(sport || '').toLowerCase();
+    if (s.includes('badminton')) return '🏸';
+    if (s.includes('table') || s === 'tt') return '🏓';
+    if (s.includes('volley')) return '🏐';
+    if (s.includes('basket')) return '🏀';
+    if (s.includes('kabaddi')) return '🤼';
+    return '🏅';
+  }
+
   // Round badge styling helper
   function getRoundBadgeHtml(roundStr) {
     const r = String(roundStr || '').toUpperCase();
@@ -385,7 +396,7 @@
         <div class="card-top-bar">
           <div class="card-badges-left">
             <span class="match-pill-id">M#${esc(x.matchNo)}</span>
-            <span class="sport-badge ${sportClass}">${esc(x.sport)}</span>
+            <span class="sport-badge ${sportClass}">${getSportIcon(x.sport)} ${esc(x.sport)}</span>
             ${roundBadge}
             ${statusPillHtml}
           </div>
@@ -547,7 +558,7 @@
     if (winners.length > 0) {
       itemsHtml = winners.map(w => `
         <span class="marquee-item">
-          <span class="marquee-winner-pill">🏆 ${esc(w.sport)} M#${esc(w.matchNo)}</span>
+          <span class="marquee-winner-pill">🏆 ${getSportIcon(w.sport)} ${esc(w.sport)} M#${esc(w.matchNo)}</span>
           <strong>${esc(w.winner)}</strong>
           ${w.defeated ? `<span style="opacity:0.8">def. ${esc(w.defeated)}</span>` : ''}
           ${w.score ? `<span style="color:#fde047;font-weight:700;">(${esc(w.score)})</span>` : ''}
@@ -560,7 +571,7 @@
         <span class="marquee-item">
           <span class="marquee-winner-pill" style="background:rgba(234,179,8,0.25);border-color:#eab308;color:#fde047;">📢 LIVE TOURNAMENT TICKER</span>
           <strong>28th H.P. Inter-Polytechnic Sports Meet 2026</strong>
-          <span>Court action underway at Govt. Polytechnic Hamirpur · Badminton, Table Tennis, Volleyball, Basketball & Kabaddi</span>
+          <span>Court action underway at Govt. Polytechnic Hamirpur · 🏸 Badminton, 🏓 Table Tennis, 🏐 Volleyball, 🏀 Basketball & 🤼 Kabaddi</span>
           <span class="marquee-sep">✦</span>
           <span>Official match winners and published scorecards will scroll here in real time as matches conclude!</span>
           <span class="marquee-sep">✦</span>
@@ -605,7 +616,7 @@
           <div class="highlight-img-wrap">
             <img src="${item.previewSrc}" alt="${esc(item.teamA)} vs ${esc(item.teamB)}" loading="lazy">
             <span class="highlight-media-count">📷 ${item.count}</span>
-            <span class="sport-badge ${getSportBadgeClass(item.sport)}" style="position:absolute;top:10px;left:10px;">${esc(item.sport)}</span>
+            <span class="sport-badge ${getSportBadgeClass(item.sport)}" style="position:absolute;top:10px;left:10px;">${getSportIcon(item.sport)} ${esc(item.sport)}</span>
           </div>
           <div class="highlight-card-body">
             <div style="font-size:11px;color:var(--gold-light);font-weight:700;">M#${item.matchNo} · ${esc(item.round)}</div>
@@ -634,7 +645,7 @@
       if (champBody && data.champions) {
         champBody.innerHTML = data.champions.map(c => `
           <tr>
-            <td><strong>${esc(c.sport)}</strong></td>
+            <td><strong>${getSportIcon(c.sport)} ${esc(c.sport)}</strong></td>
             <td><strong style="color:var(--navy)">${esc(c.champion)}</strong></td>
             <td>${esc(c.runnerUp)}</td>
             <td>${esc(c.matchesPlayed)} / ${esc(c.totalMatches)}</td>
@@ -755,8 +766,8 @@
                 <div class="sport-result-section">
                   <div class="sport-result-header">
                     <div class="sport-title-group">
-                      <span class="sport-badge ${getSportBadgeClass(sportName)}">${esc(sportName)}</span>
-                      <h3 class="sport-heading">${esc(sportName)} — Match Winners</h3>
+                      <span class="sport-badge ${getSportBadgeClass(sportName)}">${getSportIcon(sportName)} ${esc(sportName)}</span>
+                      <h3 class="sport-heading">${getSportIcon(sportName)} ${esc(sportName)} — Match Winners</h3>
                     </div>
                     <span class="sport-match-count">${sportWinners.length} ${sportWinners.length === 1 ? 'Winner' : 'Winners'} Decided</span>
                   </div>
@@ -896,7 +907,7 @@
           return `
             <tr class="${isLiveRow}">
               <td><span class="date-highlight-pill">📅 ${esc(x.date)}</span></td>
-              <td><span class="sport-badge ${getSportBadgeClass(x.sport)}">${esc(x.sport)}</span></td>
+              <td><span class="sport-badge ${getSportBadgeClass(x.sport)}">${getSportIcon(x.sport)} ${esc(x.sport)}</span></td>
               <td>
                 <div class="table-team-pairing">
                   <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
@@ -962,7 +973,7 @@
       if (champBody && data.champions) {
         champBody.innerHTML = data.champions.map(c => `
           <tr>
-            <td><strong>${esc(c.sport)}</strong></td>
+            <td><strong>${getSportIcon(c.sport)} ${esc(c.sport)}</strong></td>
             <td><strong style="color:var(--navy)">${esc(c.champion)}</strong></td>
             <td>${esc(c.runnerUp)}</td>
             <td>${esc(c.matchesPlayed)} / ${esc(c.totalMatches)}</td>
@@ -994,8 +1005,8 @@
               <div class="sport-result-section">
                 <div class="sport-result-header">
                   <div class="sport-title-group">
-                    <span class="sport-badge ${getSportBadgeClass(sportName)}">${esc(sportName)}</span>
-                    <h3 class="sport-heading">${esc(sportName)} — Official Results</h3>
+                    <span class="sport-badge ${getSportBadgeClass(sportName)}">${getSportIcon(sportName)} ${esc(sportName)}</span>
+                    <h3 class="sport-heading">${getSportIcon(sportName)} ${esc(sportName)} — Official Results</h3>
                   </div>
                   <span class="sport-match-count">${sportMatches.length} ${sportMatches.length === 1 ? 'Match' : 'Matches'} · Live Sheet Synced</span>
                 </div>
