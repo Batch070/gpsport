@@ -80,6 +80,19 @@
       </div>
     </section>
 
+    <!-- Real-Time Moving Marquee Ticker: Winner Updates & Match Announcements -->
+    <div class="winner-marquee-ticker" id="winner-marquee-ticker" aria-label="Live Winner Announcements">
+      <div class="marquee-label">
+        <span class="marquee-pulse-dot"></span>
+        <span class="marquee-tag-text">WINNER UPDATES</span>
+      </div>
+      <div class="marquee-track-wrap">
+        <div class="marquee-content" id="winner-marquee-content">
+          <!-- Populated dynamically by app.js with live winner updates -->
+        </div>
+      </div>
+    </div>
+
     <!-- Sporting Disciplines Band (Shifted right below the Hero Section) -->
     <section class="sports-band sports-band-top">
       <div class="container">
@@ -198,20 +211,31 @@
       </div>
     </section>
 
-    <!-- Featured Schedule & Match Highlights Section -->
-    <section class="section container" style="padding-top: 10px; padding-bottom: 50px;">
+    <!-- Today's Match Winners Section (Replacing Schedule Highlights) -->
+    <section class="section container" id="today-winners-section" style="padding-top: 10px; padding-bottom: 50px;">
       <div class="section-heading">
         <div>
-          <p class="eyebrow dark">SCHEDULE HIGHLIGHTS</p>
-          <h2>Next Matches Across All Disciplines</h2>
+          <p class="eyebrow dark">TODAY'S WINNERS</p>
+          <h2 id="today-winners-title">Match Winners of the Day</h2>
         </div>
-        <p class="section-intro">Upcoming matches for each sporting discipline, auto-advancing to the next scheduled
-          game as each match concludes. <a class="text-link" href="schedule.html"
-            style="color:var(--navy);font-weight:700;display:inline-block;margin-left:6px">View full schedule
-            <span>→</span></a></p>
+        <p class="section-intro" id="today-winners-desc">Official match winners and published results across all sporting disciplines for today. <a class="text-link" href="results.html" style="color:var(--navy);font-weight:700;display:inline-block;margin-left:6px">View all results <span>→</span></a></p>
       </div>
-      <div class="interactive-cards-grid" id="home-matches-grid">
-        <!-- Populated dynamically by app.js -->
+      <div class="interactive-cards-grid" id="today-winners-grid">
+        <!-- Populated dynamically by app.js with today's winners -->
+      </div>
+    </section>
+
+    <!-- Match Pictures & Court Highlights Section -->
+    <section class="section container" id="match-highlights-section" style="padding-top: 10px; padding-bottom: 50px;">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow dark">COURT ACTION & MEDIA</p>
+          <h2>Match Pictures & Highlights</h2>
+        </div>
+        <p class="section-intro">Live court action, team victory photos, and match highlights uploaded directly from the tournament courts by organizers. Click any photo to view full gallery.</p>
+      </div>
+      <div class="highlights-media-grid" id="public-highlights-grid">
+        <!-- Populated dynamically by app.js from match media -->
       </div>
     </section>
 

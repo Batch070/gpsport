@@ -56,6 +56,8 @@
   const fileInput = document.querySelector('#media-file-input');
   const btnBrowseMedia = document.querySelector('#btn-browse-media');
   const dropArea = document.querySelector('#drop-media-area');
+  const inputPhotoUrl = document.querySelector('#input-photo-url');
+  const btnAddPhotoUrl = document.querySelector('#btn-add-photo-url');
   const inputVideoUrl = document.querySelector('#input-video-url');
   const btnAddVideoUrl = document.querySelector('#btn-add-video-url');
   const thumbsGrid = document.querySelector('#modal-media-thumbs');
@@ -447,33 +449,74 @@
     const files = Array.from(e.target.files || []);
     for (const file of files) {
       const isVideo = file.type.startsWith('video');
-      const base64 = await readFileAsBase64(file);
-      activeMediaList.push({
-        id: 'media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-        type: isVideo ? 'video' : 'photo',
-        name: file.name,
-        src: base64,
-        uploadedAt: new Date().toISOString()
-      });
+      const base64 = await compressImageFile(file);
+      if (base64) {
+        activeMediaList.push({
+          id: 'media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          type: isVideo ? 'video' : 'photo',
+          name: file.name,
+          src: base64,
+          uploadedAt: new Date().toISOString()
+        });
+      }
     }
     fileInput.value = '';
     renderModalMedia();
   });
 
-  function readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
+  function compressImageFile(file, maxWidth = 1200, quality = 0.82) {
+    return new Promise((resolve) => {
+      if (file.type && file.type.startsWith('video/')) {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+        return;
+      }
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     });
   }
+
+  btnAddPhotoUrl?.addEventListener('click', () => {
+    const url = (inputPhotoUrl?.value || '').trim();
+    if (!url) return;
+    activeMediaList.push({
+      id: 'media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      type: 'photo',
+      name: 'Match Photo',
+      src: url,
+      isExternal: true,
+      uploadedAt: new Date().toISOString()
+    });
+    inputPhotoUrl.value = '';
+    renderModalMedia();
+  });
 
   btnAddVideoUrl?.addEventListener('click', () => {
     const url = (inputVideoUrl?.value || '').trim();
     if (!url) return;
     activeMediaList.push({
-      id: 'media_' + Date.now(),
+      id: 'media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       type: 'video',
       name: 'External Video',
       src: url,

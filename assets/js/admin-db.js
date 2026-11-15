@@ -95,6 +95,15 @@
       } catch {}
     },
 
+    // Get media fallback cache from localStorage
+    getMediaCache() {
+      try {
+        return JSON.parse(localStorage.getItem('SPORTS_MEDIA_CACHE') || '{}');
+      } catch {
+        return {};
+      }
+    },
+
     // Get media (photos & videos) for a particular match
     async getMatchMedia(sport, matchNo) {
       const id = `${sport}_${matchNo}`;
@@ -103,17 +112,45 @@
         return new Promise(resolve => {
           const tx = db.transaction(STORE_MEDIA, 'readonly');
           const req = tx.objectStore(STORE_MEDIA).get(id);
-          req.onsuccess = () => resolve(req.result ? req.result.media : []);
-          req.onerror = () => resolve([]);
+          req.onsuccess = () => {
+            if (req.result && req.result.media && req.result.media.length) {
+              resolve(req.result.media);
+            } else {
+              const cached = this.getMediaCache()[id];
+              resolve(cached?.mediaList || []);
+            }
+          };
+          req.onerror = () => {
+            const cached = this.getMediaCache()[id];
+            resolve(cached?.mediaList || []);
+          };
         });
       } catch {
-        return [];
+        const cached = this.getMediaCache()[id];
+        return cached?.mediaList || [];
       }
     },
 
     // Save media array for a match
     async saveMatchMedia(sport, matchNo, mediaList) {
       const id = `${sport}_${matchNo}`;
+      const firstPhoto = (mediaList || []).find(m => m.type === 'photo');
+      const previewSrc = firstPhoto ? firstPhoto.src : ((mediaList && mediaList[0]) ? mediaList[0].src : null);
+
+      // Immediately sync to localStorage so public site sees it in real time
+      const cache = this.getMediaCache();
+      cache[id] = {
+        id,
+        sport,
+        matchNo: parseInt(matchNo),
+        count: (mediaList || []).length,
+        photos: (mediaList || []).filter(m => m.type === 'photo').length,
+        videos: (mediaList || []).filter(m => m.type === 'video').length,
+        previewSrc: previewSrc,
+        mediaList: mediaList || []
+      };
+      localStorage.setItem('SPORTS_MEDIA_CACHE', JSON.stringify(cache));
+
       try {
         const db = await openDB();
         return new Promise(resolve => {
@@ -126,14 +163,14 @@
             media: mediaList
           });
           tx.oncomplete = () => resolve(true);
-          tx.onerror = () => resolve(false);
+          tx.onerror = () => resolve(true);
         });
       } catch {
-        return false;
+        return true;
       }
     },
 
-    // Get media counts map { "Badminton_1": 3, ... } for badges
+    // Get media counts & preview thumbnails map { "Badminton_1": { count: 3, previewSrc: "..." }, ... }
     async getMediaSummary() {
       try {
         const db = await openDB();
@@ -141,23 +178,29 @@
           const tx = db.transaction(STORE_MEDIA, 'readonly');
           const req = tx.objectStore(STORE_MEDIA).getAll();
           req.onsuccess = () => {
-            const summary = {};
+            const summary = this.getMediaCache();
             (req.result || []).forEach(item => {
               if (item.media && item.media.length) {
+                const firstPhoto = item.media.find(m => m.type === 'photo');
                 summary[item.id] = {
+                  id: item.id,
+                  sport: item.sport,
+                  matchNo: parseInt(item.matchNo),
                   count: item.media.length,
                   photos: item.media.filter(m => m.type === 'photo').length,
-                  videos: item.media.filter(m => m.type === 'video').length
+                  videos: item.media.filter(m => m.type === 'video').length,
+                  previewSrc: firstPhoto ? firstPhoto.src : item.media[0].src,
+                  mediaList: item.media
                 };
               }
             });
             localStorage.setItem('SPORTS_MEDIA_CACHE', JSON.stringify(summary));
             resolve(summary);
           };
-          req.onerror = () => resolve({});
+          req.onerror = () => resolve(this.getMediaCache());
         });
       } catch {
-        return {};
+        return this.getMediaCache();
       }
     }
   };
